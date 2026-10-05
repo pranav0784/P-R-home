@@ -6,18 +6,32 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(__dirname)); // वर्तमान फोल्डर से फाइल्स सर्व करने के लिए
+app.use(express.static(__dirname));
 
 const connectedUsers = {};
+const ADMIN_SECRET = "pranav123"; // <-- यहाँ अपना सीक्रेट एडमिन कोड सेट कर लो
 
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    socket.on('register-user', (data) => {
+    socket.on('login-attempt', (data) => {
+        const { username, adminCode } = data;
+        let isAdmin = false;
+
+        // अगर यूजर ने सही एडमिन कोड डाला है
+        if (adminCode && adminCode === ADMIN_SECRET) {
+            isAdmin = true;
+        } else if (adminCode && adminCode !== ADMIN_SECRET) {
+            return socket.emit('login-failed', 'Incorrect Admin Code!');
+        }
+
         connectedUsers[socket.id] = {
             socketId: socket.id,
-            username: data.username
+            username: username,
+            isAdmin: isAdmin
         };
+
+        socket.emit('login-success', { isAdmin });
         updateUserList();
     });
 
