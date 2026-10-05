@@ -147,6 +147,7 @@ io.on('connection', (socket) => {
         io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
     });
 
+    // --- व्हाइटबोर्ड (Whiteboard) इवेंट्स ---
     socket.on('wb-draw-data', (data) => {
         const targetSocketId = getUserSocketId(data.targetName);
         if (targetSocketId) {
@@ -169,6 +170,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- वीडियो / वॉइस कॉल और WebRTC सिग्नलिंग ---
     socket.on('call-user', (data) => {
         io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
     });
