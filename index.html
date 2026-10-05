@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum WhatsApp Ultra</title>
+    <title>Quantum WhatsApp Web Complete</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -24,10 +24,10 @@
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
         /* Sidebar UI */
-        .sidebar { width: 350px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
         .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .my-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
+        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
 
         .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
         .admin-box button { width: 100%; padding: 8px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
@@ -43,44 +43,46 @@
 
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
-        /* Main Chat Screen */
+        /* Main Chat Window */
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
         .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
         .target-profile { display: flex; align-items: center; gap: 12px; }
         .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .header-actions { display: flex; gap: 12px; align-items: center; }
+        .header-actions { display: flex; gap: 16px; align-items: center; }
 
         .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
 
-        /* Input Area & Emoji Picker Bar */
+        /* Input Area & Dynamic Send Button */
         .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-        /* Emoji Drawer */
-        #emojiBox { display: none; position: absolute; bottom: 65px; left: 10px; background: var(--panel-dark); border: 1px solid var(--card-border); padding: 10px; border-radius: 12px; max-width: 280px; flex-wrap: wrap; gap: 8px; z-index: 500; }
-        #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; }
+        /* Emoji Drawer Popup */
+        #emojiBox { display: none; position: absolute; bottom: 68px; left: 10px; background: var(--panel-dark); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px; max-width: 300px; flex-wrap: wrap; gap: 10px; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #emojiBox span { font-size: 1.5rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
+        #emojiBox span:hover { transform: scale(1.2); }
 
-        /* Chat Messages Support */
+        /* Chat Message Bubbles */
         .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
         .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
         .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; }
+        .msg audio { max-width: 100%; margin-top: 5px; }
         .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
         .delete-btn { position: absolute; top: 2px; right: 4px; font-size: 0.7rem; color: #ff5252; cursor: pointer; display: none; background: rgba(0,0,0,0.5); padding: 1px 4px; border-radius: 4px; }
         .msg:hover .delete-btn { display: block; }
 
-        /* Call Overlay Modal (Audio & Video) */
-        #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
-        .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 320px; }
-        .call-video-box { width: 100%; height: 220px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
+        /* Audio / Video Call Modal Screen */
+        #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
+        .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 340px; }
+        .call-video-box { width: 100%; height: 230px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
-        #localVideo { width: 80px; height: 100px; object-fit: cover; position: absolute; bottom: 10px; right: 10px; border-radius: 8px; border: 2px solid var(--accent-green); }
+        #localVideo { width: 90px; height: 110px; object-fit: cover; position: absolute; bottom: 10px; right: 10px; border-radius: 8px; border: 2px solid var(--accent-green); }
         .call-btns { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
-        .btn-accept { background: var(--accent-green); border: none; padding: 10px 20px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
-        .btn-reject { background: #ff5252; border: none; padding: 10px 20px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
+        .btn-accept { background: var(--accent-green); border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
+        .btn-reject { background: #ff5252; border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* Auth Screen Modal */
+        /* User Authentication Card Overlay */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
         .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
@@ -98,22 +100,22 @@
 </head>
 <body>
 
-    <!-- Auth / Login Modal -->
+    <!-- Authentication Overlay Screen -->
     <div id="authOverlay">
         <div class="auth-card">
-            <h2>Quantum Login</h2>
+            <h2>Quantum Web</h2>
             <input type="text" id="inputName" placeholder="Username">
-            <input type="password" id="inputCode" placeholder="Passcode (For New Users)">
-            <input type="text" id="inputAvatar" placeholder="Profile Logo URL (Optional)">
+            <input type="password" id="inputCode" placeholder="Passcode (Master: pranav123 / Dynamic: 4829)">
+            <input type="text" id="inputAvatar" placeholder="Profile Avatar URL (Optional)">
             <button onclick="login()">Enter Chat</button>
         </div>
     </div>
 
-    <!-- Call Overlay Modal (Voice & Video) -->
+    <!-- Call Overlay Screen (Voice & Video Calls) -->
     <div id="callModal">
         <div class="call-card">
             <h3 id="callStatusText">Calling...</h3>
-            <div id="callerNameText" style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:10px;">User</div>
+            <div id="callerNameText" style="color:var(--text-secondary); font-size:0.9rem; margin-top:4px;">User</div>
             
             <div class="call-video-box">
                 <video id="remoteVideo" autoplay playsinline></video>
@@ -127,32 +129,34 @@
         </div>
     </div>
 
-    <!-- App Container -->
+    <!-- Application Main Screen -->
     <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile-badge">
                     <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()">
                     <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
                     <div>
-                        <strong id="myUsernameText">You</strong>
-                        <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">User</div>
+                        <strong id="myUsernameText">User</strong>
+                        <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Online</div>
                     </div>
                 </div>
             </div>
 
             <div class="admin-box" id="adminBox">
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="customCodeInput" placeholder="New Code" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none;">
+                    <input type="text" id="customCodeInput" placeholder="New Dynamic Code" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none;">
                     <button onclick="setCustomCode()">Change</button>
                 </div>
-                <button onclick="generateCode()">🎲 Random Code</button>
+                <button onclick="generateCode()">🎲 Generate Random Code</button>
             </div>
 
             <div style="padding:10px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
             <div class="user-list" id="userListContainer"></div>
         </div>
 
+        <!-- Main Chat Area -->
         <div class="chat-main">
             <div class="chat-header">
                 <div class="target-profile">
@@ -163,38 +167,48 @@
                         <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
                     </div>
                 </div>
-                <!-- Call Buttons -->
+                
+                <!-- Voice & Video Calling Buttons -->
                 <div class="header-actions">
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">📞</button>
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(true)" title="Video Call">📹</button>
+                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                    </button>
+                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(true)" title="Video Call">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                    </button>
                 </div>
             </div>
 
             <div class="chat-body" id="chatWin"></div>
 
-            <!-- Emoji Picker Popover -->
+            <!-- Emoji Drawer -->
             <div id="emojiBox">
                 <span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span>
-                <span onclick="addEmoji('❤️')">❤️</span><span onclick="addEmoji('👍')">👍</span>
-                <span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('😍')">😍</span>
+                <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️')">❤️</span>
+                <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🔥')">🔥</span>
                 <span onclick="addEmoji('🎉')">🎉</span><span onclick="addEmoji('🙏')">🙏</span>
+                <span onclick="addEmoji('😎')">😎</span><span onclick="addEmoji('😭')">😭</span>
             </div>
 
-            <!-- Message Input Bar -->
+            <!-- Chat Input Area with Dynamic Send/Mic Button -->
             <div class="chat-input" id="chatInputArea">
                 <button class="btn-icon" onclick="toggleEmojiBox()">😊</button>
                 <button class="btn-icon" onclick="document.getElementById('fileInput').click()">📎</button>
                 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
                 
-                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
+                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
                 
-                <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()">🎙</button>
-                <button class="btn-icon" style="color:var(--accent-green);" onclick="sendText()">➔</button>
+                <!-- Voice Recording Mic Button -->
+                <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Record Voice Message">🎙</button>
+
+                <!-- Dynamic Send Button (Shown when text is typed) -->
+                <button class="btn-icon" id="sendBtn" style="color:var(--accent-green); display:none;" onclick="sendText()" title="Send Message">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Hidden Audio Player for WebRTC Call -->
     <audio id="remoteAudio" autoplay style="display:none;"></audio>
 
     <script>
@@ -203,7 +217,7 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
-        // WebRTC Signaling
+        // WebRTC Config
         let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -266,11 +280,13 @@
                 if(u.username !== myName) {
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
+                    const statusText = u.isOnline ? 'Online' : (u.lastSeen || 'Offline');
+                    
                     div.innerHTML = `
                         <img src="${u.avatarUrl}">
                         <div class="user-info">
                             <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
-                            <span>${u.isOnline ? 'Online' : 'Offline'}</span>
+                            <span>${statusText}</span>
                         </div>
                         ${u.isOnline ? '<div class="online-dot"></div>' : ''}
                         ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
@@ -291,7 +307,7 @@
             selectedTargetUser = userObj.username;
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
-            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : 'Offline';
+            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
             renderFilteredHistory();
         }
@@ -347,7 +363,30 @@
             win.scrollTop = win.scrollHeight;
         }
 
-        /* Messaging & Emoji Logic */
+        /* Input Bar & Send Button Dynamics */
+        function handleInputChange() {
+            const txt = document.getElementById('msgInput').value.trim();
+            const sendBtn = document.getElementById('sendBtn');
+            const voiceBtn = document.getElementById('voiceBtn');
+
+            if (txt.length > 0) {
+                sendBtn.style.display = 'flex';
+                voiceBtn.style.display = 'none';
+            } else {
+                sendBtn.style.display = 'none';
+                voiceBtn.style.display = 'flex';
+            }
+
+            // Live Typing Status update
+            if(selectedTargetUser) {
+                socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
+                }, 2000);
+            }
+        }
+
         function toggleEmojiBox() {
             const box = document.getElementById('emojiBox');
             box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
@@ -356,6 +395,7 @@
         function addEmoji(emoji) {
             const input = document.getElementById('msgInput');
             input.value += emoji;
+            handleInputChange();
             document.getElementById('emojiBox').style.display = 'none';
         }
 
@@ -369,7 +409,9 @@
                 message: txt,
                 mediaType: 'text'
             });
+            
             document.getElementById('msgInput').value = '';
+            handleInputChange();
             socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
         }
 
@@ -390,47 +432,40 @@
             }
         }
 
-        /* Voice Notes */
+        /* Audio Note Recording */
         async function toggleRecordAudio() {
             if(!selectedTargetUser) return alert('Select user first!');
             const btn = document.getElementById('voiceBtn');
             
             if(!isRecording) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        socket.emit('send-private-message', {
-                            senderName: myName,
-                            targetName: selectedTargetUser,
-                            mediaType: 'audio',
-                            mediaUrl: e.target.result
-                        });
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            socket.emit('send-private-message', {
+                                senderName: myName,
+                                targetName: selectedTargetUser,
+                                mediaType: 'audio',
+                                mediaUrl: e.target.result
+                            });
+                        };
+                        reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
                     };
-                    reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
-                };
-                mediaRecorder.start();
-                isRecording = true;
-                btn.style.color = 'red';
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.style.color = 'red';
+                } catch(err) {
+                    alert('Microphone Access Denied!');
+                }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
                 btn.style.color = 'var(--text-secondary)';
             }
-        }
-
-        /* Live Typing Status */
-        function handleTyping() {
-            if(!selectedTargetUser) return;
-            socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
-            
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
-            }, 2000);
         }
 
         socket.on('user-typing-status', (data) => {
@@ -442,7 +477,7 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
-        /* --- WebRTC Voice/Video Call Logic --- */
+        /* WebRTC Voice & Video Call Logic */
         async function startCall(videoMode) {
             if(!selectedTargetUser) return alert('Select user to call!');
             isVideoCall = videoMode;
