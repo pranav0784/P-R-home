@@ -21,7 +21,6 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
-        /* Splash Screen Animation */
         #splashScreen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
@@ -48,14 +47,12 @@
         }
         @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
 
-        /* Auth Screen */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
         .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
         .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
         .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* App Container */
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
         .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
@@ -70,14 +67,15 @@
         .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
         .user-item:hover, .user-item.active { background: #202c33; }
         .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-        .user-info { flex: 1; }
-        .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); }
+        .user-info { flex: 1; min-width: 0; }
+        .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
         .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
+        
+        .unread-badge { background: var(--accent-green); color: #000; font-size: 0.75rem; font-weight: bold; padding: 2px 7px; border-radius: 50%; display: inline-block; margin-left: 6px; }
 
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
-        /* Chat Main Screen */
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
         .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
         .target-profile { display: flex; align-items: center; gap: 12px; }
@@ -108,7 +106,6 @@
 
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 
-        /* Delete Modal */
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
         .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
         .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
@@ -117,7 +114,6 @@
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
-        /* Full Screen Call Overlay with Front/Back Camera & Screen Share */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
@@ -149,20 +145,15 @@
             font-size: 1.3rem; cursor: pointer; color: #fff; background: rgba(255,255,255,0.2);
             backdrop-filter: blur(5px); transition: transform 0.2s;
         }
-        .call-btn-circle:active { transform: scale(0.9); }
         .btn-call-end { background: #ff3b30 !important; }
-        .btn-call-accept { background: #34c759 !important; animation: bounce 1s infinite alternate; }
-
-        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+        .btn-call-accept { background: #34c759 !important; }
 
         .incoming-slide-card {
             position: absolute; bottom: 30px; z-index: 30; width: 90%; max-width: 360px;
             background: var(--panel-dark); border: 1px solid var(--card-border);
             padding: 20px; border-radius: 24px; text-align: center;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            animation: slideUp 0.4s ease-out forwards;
         }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; display: flex; }
@@ -175,24 +166,21 @@
 </head>
 <body>
 
-    <!-- Splash Screen Animation -->
     <div id="splashScreen">
         <div class="alien-logo-badge">Alien_0729👽</div>
         <div class="splash-title">Quantum Messenger Pro</div>
     </div>
 
-    <!-- Login Auth Overlay with Master & Dynamic Passcode -->
     <div id="authOverlay">
         <div class="auth-card">
             <h2>Quantum Web</h2>
             <input type="text" id="inputName" placeholder="Username">
-            <input type="password" id="inputCode" placeholder="Passcode (Master: pranav123 / Dynamic: 4829)">
+            <input type="password" id="inputCode" placeholder="Enter Passcode (Master: guddu05 / Dynamic)">
             <input type="text" id="inputAvatar" placeholder="Profile Avatar URL (Optional)">
             <button onclick="login()">Enter Chat</button>
         </div>
     </div>
 
-    <!-- Message Delete / Reply Modal -->
     <div id="deleteModal">
         <div class="delete-card">
             <h4 style="margin-bottom:12px;">Message Options</h4>
@@ -203,7 +191,6 @@
         </div>
     </div>
 
-    <!-- Full Screen Call Modal (Voice/Video + Switch Cam + Screen Share) -->
     <div id="callModal">
         <div class="call-top-bar">
             <h2 id="callTargetName" style="color:#fff; font-size:1.3rem;">User</h2>
@@ -232,7 +219,6 @@
         </div>
     </div>
 
-    <!-- Main App Container -->
     <div class="app-container" id="appContainer">
         <div class="sidebar">
             <div class="sidebar-header">
@@ -309,6 +295,7 @@
         const socket = io();
         let myName = '', selectedTargetUser = null, allHistory = [];
         let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
+        let unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
 
@@ -324,9 +311,11 @@
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
             const savedCode = localStorage.getItem('quantum_passcode');
+            const savedAvatar = localStorage.getItem('quantum_avatar');
             if(savedName && savedCode) {
                 document.getElementById('inputName').value = savedName;
                 document.getElementById('inputCode').value = savedCode;
+                if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
                 login(true);
             }
         };
@@ -334,12 +323,19 @@
         function login(isAuto = false) {
             myName = document.getElementById('inputName').value.trim();
             const code = document.getElementById('inputCode').value.trim();
-            const avatar = document.getElementById('inputAvatar').value.trim();
+            let avatar = document.getElementById('inputAvatar').value.trim();
             
             if(!myName || !code) return isAuto ? null : alert('Username & Passcode are required!');
 
+            const savedAvatar = localStorage.getItem('quantum_avatar');
+            if (!avatar && savedAvatar) {
+                avatar = savedAvatar;
+            }
+
             localStorage.setItem('quantum_username', myName);
             localStorage.setItem('quantum_passcode', code);
+            if(avatar) localStorage.setItem('quantum_avatar', avatar);
+
             socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
         }
 
@@ -350,11 +346,11 @@
             document.getElementById('myAvatarImg').src = data.avatarUrl;
             document.getElementById('myRoleBadge').innerText = data.isAdmin ? 'Master Admin 👑' : 'Pro User';
             
+            localStorage.setItem('quantum_avatar', data.avatarUrl);
             if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
         });
 
         socket.on('login-failed', msg => {
-            localStorage.clear();
             alert(msg);
         });
 
@@ -374,6 +370,7 @@
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     document.getElementById('myAvatarImg').src = e.target.result;
+                    localStorage.setItem('quantum_avatar', e.target.result);
                     socket.emit('update-avatar', { username: myName, newAvatarUrl: e.target.result });
                 };
                 reader.readAsDataURL(input.files[0]);
@@ -390,6 +387,7 @@
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
                     const statusText = u.isOnline ? 'Online' : (u.lastSeen || 'Offline');
+                    const unreadCount = unreadCounts[u.username] || 0;
                     
                     div.innerHTML = `
                         <img src="${u.avatarUrl}">
@@ -397,8 +395,9 @@
                             <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
                             <span>${statusText}</span>
                         </div>
-                        ${u.isOnline ? '<div class="online-dot"></div>' : ''}
-                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
+                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                        ${u.isOnline ? '<div class="online-dot" style="margin-left:6px;"></div>' : ''}
+                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" style="margin-left:8px;" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
                     `;
                     div.onclick = () => selectTargetUser(u);
                     container.appendChild(div);
@@ -418,11 +417,15 @@
 
         function selectTargetUser(userObj) {
             selectedTargetUser = userObj.username;
+            unreadCounts[selectedTargetUser] = 0;
+            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
             renderFilteredHistory();
+            socket.emit('update-user-list-trigger');
         }
 
         socket.on('load-chat-history', (history) => {
@@ -434,6 +437,9 @@
             allHistory.push(msgObj);
             if(selectedTargetUser === msgObj.senderName || msgObj.senderName === myName) {
                 renderFilteredHistory();
+            } else if (msgObj.targetName === myName) {
+                unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
+                localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
             }
         });
 
