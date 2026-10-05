@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quantum WhatsApp - Secure Room</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -18,22 +18,21 @@
         }
 
         * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: var(--wa-bg); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
+        html, body { height: 100%; width: 100%; background: var(--wa-bg); color: var(--text-primary); overflow: hidden; }
 
         /* लॉगिन ओवरले */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--wa-bg); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--wa-panel); padding: 30px; border-radius: 12px; width: 340px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
+        .auth-card { background: var(--wa-panel); padding: 25px; border-radius: 12px; width: 90%; max-width: 340px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
         .auth-card h2 { color: var(--wa-green); margin-bottom: 20px; }
         .auth-card input { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; margin-bottom: 12px; }
-        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-green); color: #fff; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-green); color: #fff; font-weight: bold; cursor: pointer; }
 
         .app-container { width: 100vw; height: 100vh; display: none; flex-direction: row; overflow: hidden; }
 
-        .sidebar { width: 320px; background: var(--wa-panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .sidebar { width: 300px; background: var(--wa-panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         
-        /* एडमिन के लिए कोड जनरेट करने वाला पैनल */
-        .admin-panel-box { padding: 12px; background: #182229; border-bottom: 1px solid #222d34; display: none; }
+        .admin-panel-box { padding: 10px; background: #182229; border-bottom: 1px solid #222d34; display: none; flex-shrink: 0; }
         .admin-panel-box input { width: 100%; padding: 8px; border-radius: 6px; border: none; background: #2a3942; color: #fff; margin-bottom: 6px; outline: none; }
         .admin-panel-box button { width: 100%; padding: 8px; background: var(--wa-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
 
@@ -42,28 +41,31 @@
         .user-item:hover, .user-item.active { background: #202c33; }
         .online-dot { width: 10px; height: 10px; background: var(--wa-green); border-radius: 50%; }
 
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; min-width: 0; }
-        .chat-header { height: 60px; background: var(--wa-header); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+        /* मुख्य चैट सेक्शन - लेआउट फिक्स */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; height: 100%; min-width: 0; }
+        .chat-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .call-btns { display: flex; gap: 15px; font-size: 1.3rem; cursor: pointer; }
 
-        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; word-break: break-word; position: relative; }
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; word-break: break-word; position: relative; }
         .msg.sent { align-self: flex-end; background: var(--wa-bubble-sent); }
         .msg.recv { align-self: flex-start; background: var(--wa-bubble-recv); }
         .msg img { max-width: 100%; border-radius: 6px; margin-top: 5px; }
         .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
 
-        .chat-input { height: 62px; background: var(--wa-header); padding: 10px; display: flex; align-items: center; gap: 8px; }
-        .input-box { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; }
+        /* चैट इनपुट बार फिक्स */
+        .chat-input { height: 62px; background: var(--wa-header); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .input-box { flex: 1; padding: 10px 14px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .call-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:100; padding: 15px; }
         .video-box { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 600px; }
         video { width: 100%; max-width: 260px; height: 190px; background: #222; border-radius: 12px; object-fit: cover; }
 
+        /* मोबाइल स्क्रीन रिस्पॉन्सिव */
         @media (max-width: 768px) {
             .app-container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; max-height: 35vh; }
+            .sidebar { width: 100%; height: 35vh; border-right: none; border-bottom: 1px solid #222d34; }
             .chat-main { height: 65vh; }
             video { max-width: 140px; height: 170px; }
         }
@@ -81,21 +83,20 @@
         </div>
     </div>
 
-    <!-- मुख्य ऐप इंटरफ़ेस -->
+    <!-- मुख्य ऐप -->
     <div class="app-container" id="appContainer">
         <div class="sidebar">
             <div class="sidebar-header">
                 <strong style="color:var(--wa-green)" id="userRoleTitle">Quantum WhatsApp</strong>
             </div>
             
-            <!-- एडमिन के लिए नया कोड सेट करने का पैनल -->
             <div class="admin-panel-box" id="adminPanelBox">
                 <div style="font-size:0.75rem; color:var(--wa-green); margin-bottom:4px;">ADMIN CONTROLS:</div>
                 <input type="text" id="newRoomCodeInput" placeholder="Set New Entry Code">
                 <button onclick="updateRoomCode()">Update Entry Code</button>
             </div>
 
-            <div style="padding:10px; font-size:0.85rem; color:var(--text-secondary);">ONLINE USERS:</div>
+            <div style="padding:8px 16px; font-size:0.85rem; color:var(--text-secondary);">ONLINE USERS:</div>
             <div class="user-list" id="usersContainer"></div>
         </div>
 
@@ -113,11 +114,12 @@
 
             <div class="chat-body" id="chatWin"></div>
 
-            <div class="chat-input">
+            <!-- चैट इनपुट बार -->
+            <div class="chat-input" id="chatInputBar">
                 <button class="btn-icon" onclick="addEmoji('😊')">😊</button>
                 <button class="btn-icon" onclick="document.getElementById('imgInput').click()">📎</button>
                 <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="sendPhoto(this)">
-                <input type="text" id="msgText" class="input-box" style="margin:0; flex:1;" placeholder="Type a message..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
+                <input type="text" id="msgText" class="input-box" placeholder="Type a message..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
                 <button class="btn-icon" style="color:var(--wa-green);" onclick="sendText()">➔</button>
             </div>
         </div>
@@ -192,7 +194,7 @@
 
         function sendText() {
             const txt = document.getElementById('msgText').value.trim();
-            if(!txt || !selectedTargetSocketId) return;
+            if(!txt || !selectedTargetSocketId) return alert('Select a user first!');
             
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             socket.emit('send-private-message', {
