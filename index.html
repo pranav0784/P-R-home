@@ -28,12 +28,27 @@
             justify-content: center; align-items: center; z-index: 9999;
             animation: fadeOut 0.8s ease 2s forwards;
         }
-        .splash-logo {
-            width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
+
+        /* Custom Alien Logo Badge */
+        .alien-logo-badge {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1f2c34, #0b141a);
+            border: 3px solid #00a884;
+            color: #00a884;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 30px rgba(0, 168, 132, 0.5);
             animation: pulseZoom 1.2s infinite alternate ease-in-out;
-            box-shadow: 0 0 25px rgba(0, 168, 132, 0.4);
-            border: 2px solid var(--accent-green);
+            text-shadow: 0 0 10px rgba(0, 255, 180, 0.6);
+            user-select: none;
         }
+
         .splash-title { color: var(--accent-green); margin-top: 18px; font-weight: 700; font-size: 1.4rem; letter-spacing: 1px; }
 
         @keyframes pulseZoom {
@@ -121,9 +136,11 @@
 </head>
 <body>
 
-    <!-- Splash Screen with Custom Emblem Logo -->
+    <!-- Splash Screen with Alien Text Logo Badge -->
     <div id="splashScreen">
-        <img id="splashAppLogo" src="logo.jpg" onerror="this.src='https://i.ibb.co/3k8xYmP/custom-logo.jpg'" class="splash-logo">
+        <div class="alien-logo-badge">
+            alien_0784👽
+        </div>
         <div class="splash-title">Quantum Messenger</div>
     </div>
 
@@ -143,7 +160,6 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile-badge">
-                    <!-- Tap DP to open phone gallery -->
                     <img id="myAvatarImg" src="" class="my-avatar" title="Click to change logo" onclick="document.getElementById('avatarFileInput').click()">
                     <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
                     
@@ -154,7 +170,7 @@
                 </div>
             </div>
 
-            <!-- Admin Passcode Box with Custom Change Option -->
+            <!-- Admin Passcode Box -->
             <div class="admin-box" id="adminBox">
                 <div class="code-display" id="codeDisplay">Current Code: ----</div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
