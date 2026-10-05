@@ -108,7 +108,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send-private-message', (data) => {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             senderName: data.senderName,
@@ -117,11 +116,12 @@ io.on('connection', (socket) => {
             mediaType: data.mediaType,
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
-            time: timeStr
+            time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         };
 
         chatHistory.push(msgObject);
 
+        // Target aur Sender dono ko turant deliver karein bina refresh ke
         io.to(data.targetName).emit('receive-private-message', msgObject);
         io.to(data.senderName).emit('receive-private-message', msgObject);
     });
