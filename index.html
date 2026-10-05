@@ -25,7 +25,7 @@
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 9999;
-            animation: fadeOut 0.6s ease 1.5s forwards;
+            animation: fadeOut 0.5s ease 1.2s forwards;
         }
 
         .alien-logo-badge {
@@ -112,14 +112,60 @@
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
-        #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
-        .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 340px; }
-        .call-video-box { width: 100%; height: 230px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
-        #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
-        #localVideo { width: 90px; height: 110px; object-fit: cover; position: absolute; bottom: 10px; right: 10px; border-radius: 8px; border: 2px solid var(--accent-green); }
-        .call-btns { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
-        .btn-accept { background: var(--accent-green); border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
-        .btn-reject { background: #ff5252; border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
+        /* --- Full Screen WhatsApp-Style Video Overlay --- */
+        #callModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
+        }
+
+        .video-full-container {
+            position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1;
+        }
+
+        #mainVideo {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        #pipVideo {
+            position: absolute; top: 20px; right: 20px; width: 120px; height: 170px;
+            object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
+            z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: pointer;
+        }
+
+        .call-top-bar {
+            position: relative; z-index: 20; width: 100%; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        .call-controls-bar {
+            position: relative; z-index: 20; width: 100%; padding: 25px 20px;
+            display: flex; justify-content: center; gap: 20px; align-items: center;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        }
+
+        .call-btn-circle {
+            width: 55px; height: 55px; border-radius: 50%; border: none;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.3rem; cursor: pointer; color: #fff; background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(5px); transition: transform 0.2s;
+        }
+        .call-btn-circle:active { transform: scale(0.9); }
+        .btn-call-end { background: #ff3b30 !important; }
+        .btn-call-accept { background: #34c759 !important; animation: bounce 1s infinite alternate; }
+
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+
+        /* Slide Up Animation for Incoming Calls */
+        .incoming-slide-card {
+            position: absolute; bottom: 30px; z-index: 30; width: 90%; max-width: 360px;
+            background: var(--panel-dark); border: 1px solid var(--card-border);
+            padding: 20px; border-radius: 24px; text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            animation: slideUp 0.4s ease-out forwards;
+        }
+
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
@@ -163,20 +209,34 @@
         </div>
     </div>
 
+    <!-- WhatsApp Style Full-Screen Call Modal -->
     <div id="callModal">
-        <div class="call-card">
-            <h3 id="callStatusText">Calling...</h3>
-            <div id="callerNameText" style="color:var(--text-secondary); font-size:0.9rem; margin-top:4px;">User</div>
-            
-            <div class="call-video-box">
-                <video id="remoteVideo" autoplay playsinline></video>
-                <video id="localVideo" autoplay playsinline muted></video>
-            </div>
+        <div class="call-top-bar">
+            <h2 id="callTargetName" style="color:#fff; font-size:1.3rem;">User</h2>
+            <div id="callStatusText" style="color:var(--accent-green); font-size:0.9rem; margin-top:4px;">Calling...</div>
+        </div>
 
-            <div class="call-btns">
-                <button class="btn-accept" id="acceptCallBtn" onclick="acceptCall()">Accept</button>
-                <button class="btn-reject" onclick="endCall()">End</button>
+        <div class="video-full-container">
+            <video id="mainVideo" autoplay playsinline></video>
+            <video id="pipVideo" autoplay playsinline muted onclick="swapVideoViews()"></video>
+        </div>
+
+        <!-- Incoming Call Slide UI -->
+        <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
+            <h3 id="incomingCallerName" style="color:#fff;">Caller</h3>
+            <p id="incomingCallType" style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Incoming Video Call</p>
+            <div style="display:flex; justify-content:center; gap:20px; margin-top:18px;">
+                <button class="call-btn-circle btn-call-accept" onclick="acceptCall()">📞</button>
+                <button class="call-btn-circle btn-call-end" onclick="endCall()">✕</button>
             </div>
+        </div>
+
+        <!-- Call Active Control Buttons -->
+        <div class="call-controls-bar" id="activeCallControls">
+            <button class="call-btn-circle" id="btnSwitchCam" onclick="switchCamera()" title="Switch Camera">🔄</button>
+            <button class="call-btn-circle" id="btnScreenShare" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
+            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙️</button>
+            <button class="call-btn-circle btn-call-end" onclick="endCall()" title="End Call">📞</button>
         </div>
     </div>
 
@@ -253,7 +313,7 @@
     <audio id="remoteAudio" autoplay style="display:none;"></audio>
 
     <script>
-        const socket = io({ reconnection: true, reconnectionDelay: 500 });
+        const socket = io({ reconnection: true, reconnectionDelay: 500, reconnectionAttempts: Infinity });
         let myName = '', selectedTargetUser = null, allHistory = [];
         let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
         let selectedMsgForDelete = null;
@@ -263,8 +323,17 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
-        let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        // WebRTC & Call Logic
+        let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
+        let currentFacingMode = 'user'; // 'user' for front, 'environment' for back
+        let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
+
+        const rtcConfig = { 
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ] 
+        };
 
         function getCurrentDeviceTime() {
             return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -642,6 +711,15 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
+        // --- FULL-SCREEN HIGH-QUALITY WEBRTC CALL SYSTEM ---
+        async function getHDMediaStream(video, facing) {
+            const constraints = {
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
+            };
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        }
+
         async function startCall(videoMode) {
             if(!selectedTargetUser) return alert('Select user to call!');
             isVideoCall = videoMode;
@@ -655,19 +733,20 @@
             });
 
             document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callStatusText').innerText = isVideoCall ? 'Video Calling...' : 'Voice Calling...';
-            document.getElementById('callerNameText').innerText = selectedTargetUser;
-            document.getElementById('acceptCallBtn').style.display = 'none';
+            document.getElementById('callTargetName').innerText = selectedTargetUser;
+            document.getElementById('callStatusText').innerText = 'Calling...';
+            document.getElementById('incomingSlideCard').style.display = 'none';
+            document.getElementById('activeCallControls').style.display = 'flex';
 
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCall });
-            document.getElementById('localVideo').srcObject = isVideoCall ? localStream : null;
+            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+            assignStreamViews();
 
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
             peerConnection.ontrack = e => {
-                if(isVideoCall) document.getElementById('remoteVideo').srcObject = e.streams[0];
-                else document.getElementById('remoteAudio').srcObject = e.streams[0];
+                remoteStream = e.streams[0];
+                assignStreamViews();
             };
 
             peerConnection.onicecandidate = e => {
@@ -686,24 +765,29 @@
             selectedTargetUser = data.fromUser;
             
             document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callStatusText').innerText = isVideoCall ? 'Incoming Video Call' : 'Incoming Voice Call';
-            document.getElementById('callerNameText').innerText = data.fromUser;
-            document.getElementById('acceptCallBtn').style.display = 'inline-block';
+            document.getElementById('callTargetName').innerText = data.fromUser;
+            document.getElementById('callStatusText').innerText = isVideoCall ? 'Incoming Video Call...' : 'Incoming Voice Call...';
+            
+            document.getElementById('incomingCallerName').innerText = data.fromUser;
+            document.getElementById('incomingCallType').innerText = isVideoCall ? 'Incoming Video Call' : 'Incoming Voice Call';
+            document.getElementById('incomingSlideCard').style.display = 'block';
+            document.getElementById('activeCallControls').style.display = 'none';
         });
 
         async function acceptCall() {
-            document.getElementById('acceptCallBtn').style.display = 'none';
+            document.getElementById('incomingSlideCard').style.display = 'none';
+            document.getElementById('activeCallControls').style.display = 'flex';
             document.getElementById('callStatusText').innerText = 'Connected';
 
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCall });
-            document.getElementById('localVideo').srcObject = isVideoCall ? localStream : null;
+            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+            assignStreamViews();
 
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
             peerConnection.ontrack = e => {
-                if(isVideoCall) document.getElementById('remoteVideo').srcObject = e.streams[0];
-                else document.getElementById('remoteAudio').srcObject = e.streams[0];
+                remoteStream = e.streams[0];
+                assignStreamViews();
             };
 
             peerConnection.onicecandidate = e => {
@@ -728,6 +812,72 @@
 
         socket.on('call-ended', () => endCallUI());
 
+        function assignStreamViews() {
+            const mainVid = document.getElementById('mainVideo');
+            const pipVid = document.getElementById('pipVideo');
+
+            if (isMainVideoRemote) {
+                if (remoteStream) mainVid.srcObject = remoteStream;
+                if (localStream) pipVid.srcObject = localStream;
+            } else {
+                if (localStream) mainVid.srcObject = localStream;
+                if (remoteStream) pipVid.srcObject = remoteStream;
+            }
+        }
+
+        function swapVideoViews() {
+            isMainVideoRemote = !isMainVideoRemote;
+            assignStreamViews();
+        }
+
+        async function switchCamera() {
+            if (!isVideoCall || !localStream) return;
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = await getHDMediaStream(true, currentFacingMode);
+            
+            const videoTrack = localStream.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+            if (sender) sender.replaceTrack(videoTrack);
+            
+            assignStreamViews();
+        }
+
+        async function toggleScreenShare() {
+            if (!peerConnection) return;
+            
+            if (!isScreenSharing) {
+                try {
+                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenTrack = screenStream.getVideoTracks()[0];
+                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(screenTrack);
+                    
+                    document.getElementById('mainVideo').srcObject = screenStream;
+                    isScreenSharing = true;
+
+                    screenTrack.onended = () => toggleScreenShare();
+                } catch(err) {
+                    console.log('Screen sharing cancelled');
+                }
+            } else {
+                const videoTrack = localStream.getVideoTracks()[0];
+                const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                if (sender) sender.replaceTrack(videoTrack);
+                assignStreamViews();
+                isScreenSharing = false;
+            }
+        }
+
+        function toggleMuteMic() {
+            if (localStream) {
+                isMicMuted = !isMicMuted;
+                localStream.getAudioTracks()[0].enabled = !isMicMuted;
+                document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙️';
+            }
+        }
+
         function endCall() {
             if(selectedTargetUser) socket.emit('end-call', { targetName: selectedTargetUser });
             endCallUI();
@@ -738,6 +888,7 @@
             if(localStream) localStream.getTracks().forEach(track => track.stop());
             peerConnection = null;
             localStream = null;
+            remoteStream = null;
             document.getElementById('callModal').style.display = 'none';
         }
     </script>
