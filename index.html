@@ -130,7 +130,7 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* --- FIXED CALL & DRAGGABLE/SWAPPABLE VIDEO STYLES --- */
+        /* --- CALL & DRAGGABLE VIDEO STYLES --- */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
@@ -141,9 +141,8 @@
         
         #pipVideo {
             position: absolute; top: 80px; right: 20px; width: 130px; height: 180px;
-            object-fit: pointer; border-radius: 12px; border: 2px solid var(--accent-green);
+            object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
             z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab;
-            transform: scaleX(-1); /* Corrects mirror image for local user */
             touch-action: none;
         }
         #pipVideo:active { cursor: grabbing; }
@@ -175,6 +174,13 @@
             background: var(--panel-dark); border: 1px solid var(--card-border);
             padding: 20px; border-radius: 24px; text-align: center;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
+
+        /* In-App Toast Notification */
+        #inAppNotificationToast {
+            display: none; position: fixed; top: 20px; right: 20px; background: var(--panel-dark);
+            color: #fff; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--card-border);
+            z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
         @media (max-width: 768px) {
@@ -213,6 +219,12 @@
         </div>
     </div>
 
+    <!-- In-App Notification Toast -->
+    <div id="inAppNotificationToast">
+        <div style="font-weight:bold; font-size:0.9rem;" id="toastSender">New Message</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);" id="toastMessage"></div>
+    </div>
+
     <div id="whiteboardModal">
         <div class="wb-header">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -241,7 +253,6 @@
 
         <div class="video-full-container" id="videoContainer">
             <video id="mainVideo" autoplay playsinline></video>
-            <!-- PiP Video with drag & click support -->
             <video id="pipVideo" autoplay playsinline muted></video>
         </div>
 
@@ -471,6 +482,9 @@
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
             renderFilteredHistory();
+            
+            // Refresh user list UI to clear badge
+            socket.emit('request-user-list');
         }
 
         socket.on('load-chat-history', (history) => {
@@ -483,13 +497,25 @@
             if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
                 renderFilteredHistory();
             } 
+            
             if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
                 unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
                 localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+                
+                // Trigger In-App Toast & Sound
+                showInAppNotification(msgObj.senderName, msgObj.message || msgObj.mediaType);
                 const sound = document.getElementById('notifySound');
                 if(sound) sound.play().catch(e => console.log('Audio play blocked'));
             }
         });
+
+        function showInAppNotification(sender, text) {
+            const toast = document.getElementById('inAppNotificationToast');
+            document.getElementById('toastSender').innerText = sender;
+            document.getElementById('toastMessage').innerText = text;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+        }
 
         socket.on('message-deleted-everyone', (data) => {
             allHistory = allHistory.filter(m => m.msgId !== data.msgId);
@@ -563,7 +589,6 @@
                 div.onclick = () => openDeleteModal(msg);
                 
                 let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
-                
                 if(msg.replyTo) html += `<div class="reply-quote">${msg.replyTo}</div>`;
 
                 if(msg.mediaType === 'text') html += msg.message;
@@ -865,7 +890,7 @@
 
             const onEnd = () => {
                 if(!hasMoved) {
-                    swapVideoViews(); // Swap if clicked without dragging
+                    swapVideoViews();
                 }
                 isDragging = false;
             };
@@ -974,6 +999,10 @@
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
 
+            // कैमरा मिरर फिक्स: केवल फ्रंट कैमरे (user) पर 'scaleX(-1)', बैक कैमरे (environment) पर 'none'
+            const isFrontCamera = currentFacingMode === 'user';
+            const dynamicTransform = isFrontCamera ? 'scaleX(-1)' : 'none';
+
             if (isMainVideoRemote) {
                 if (remoteStream) {
                     mainVid.srcObject = remoteStream;
@@ -981,12 +1010,12 @@
                 }
                 if (localStream) {
                     pipVid.srcObject = localStream;
-                    pipVid.style.transform = 'scaleX(-1)';
+                    pipVid.style.transform = dynamicTransform;
                 }
             } else {
                 if (localStream) {
                     mainVid.srcObject = localStream;
-                    mainVid.style.transform = 'scaleX(-1)';
+                    mainVid.style.transform = dynamicTransform;
                 }
                 if (remoteStream) {
                     pipVid.srcObject = remoteStream;
