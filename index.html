@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum WhatsApp - Secure</title>
+    <title>Quantum WhatsApp - Secure Room</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -22,7 +22,7 @@
 
         /* लॉगिन ओवरले */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--wa-bg); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--wa-panel); padding: 30px; border-radius: 12px; width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
+        .auth-card { background: var(--wa-panel); padding: 30px; border-radius: 12px; width: 340px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
         .auth-card h2 { color: var(--wa-green); margin-bottom: 20px; }
         .auth-card input { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; margin-bottom: 12px; }
         .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-green); color: #fff; font-weight: bold; cursor: pointer; margin-top: 5px; }
@@ -31,6 +31,12 @@
 
         .sidebar { width: 320px; background: var(--wa-panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+        
+        /* एडमिन के लिए कोड जनरेट करने वाला पैनल */
+        .admin-panel-box { padding: 12px; background: #182229; border-bottom: 1px solid #222d34; display: none; }
+        .admin-panel-box input { width: 100%; padding: 8px; border-radius: 6px; border: none; background: #2a3942; color: #fff; margin-bottom: 6px; outline: none; }
+        .admin-panel-box button { width: 100%; padding: 8px; background: var(--wa-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
+
         .user-list { flex: 1; overflow-y: auto; }
         .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .user-item:hover, .user-item.active { background: #202c33; }
@@ -65,12 +71,12 @@
 </head>
 <body>
 
-    <!-- लॉगिन / ऑथेंटिकेशन स्क्रीन -->
+    <!-- लॉगिन स्क्रीन -->
     <div id="authOverlay">
         <div class="auth-card">
             <h2>Quantum WhatsApp</h2>
             <input type="text" id="inputName" placeholder="Your Name">
-            <input type="password" id="inputAdminCode" placeholder="Admin Secret Code (Optional)">
+            <input type="password" id="inputAdminOrRoomCode" placeholder="Enter Admin Code or Room Code">
             <button onclick="login()">Join Chat</button>
         </div>
     </div>
@@ -81,14 +87,22 @@
             <div class="sidebar-header">
                 <strong style="color:var(--wa-green)" id="userRoleTitle">Quantum WhatsApp</strong>
             </div>
-            <div style="padding:10px; font-size:0.85rem; color:var(--text-secondary);">CHATS:</div>
+            
+            <!-- एडमिन के लिए नया कोड सेट करने का पैनल -->
+            <div class="admin-panel-box" id="adminPanelBox">
+                <div style="font-size:0.75rem; color:var(--wa-green); margin-bottom:4px;">ADMIN CONTROLS:</div>
+                <input type="text" id="newRoomCodeInput" placeholder="Set New Entry Code">
+                <button onclick="updateRoomCode()">Update Entry Code</button>
+            </div>
+
+            <div style="padding:10px; font-size:0.85rem; color:var(--text-secondary);">ONLINE USERS:</div>
             <div class="user-list" id="usersContainer"></div>
         </div>
 
         <div class="chat-main">
             <div class="chat-header">
                 <div>
-                    <strong id="targetUserName">Select a chat</strong>
+                    <strong id="targetUserName">Select a user to chat</strong>
                     <div id="targetStatus" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
                 </div>
                 <div class="call-btns" id="callBtns" style="display:none;">
@@ -125,22 +139,34 @@
 
         function login() {
             myName = document.getElementById('inputName').value.trim();
-            const code = document.getElementById('inputAdminCode').value.trim();
+            const code = document.getElementById('inputAdminOrRoomCode').value.trim();
             if(!myName) return alert('Please enter your name!');
 
-            socket.emit('login-attempt', { username: myName, adminCode: code });
+            socket.emit('login-attempt', { username: myName, inputCode: code });
         }
 
         socket.on('login-success', (data) => {
             isAdmin = data.isAdmin;
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('userRoleTitle').innerText = isAdmin ? 'Admin Panel 👑' : 'User Panel';
+            document.getElementById('userRoleTitle').innerText = isAdmin ? 'Admin 👑' : 'WhatsApp';
+            
+            if(isAdmin) {
+                document.getElementById('adminPanelBox').style.display = 'block';
+            }
         });
 
         socket.on('login-failed', (msg) => {
             alert(msg);
         });
+
+        function updateRoomCode() {
+            const newCode = document.getElementById('newRoomCodeInput').value.trim();
+            if(!newCode) return alert('Enter a valid code!');
+            socket.emit('set-room-code', { newCode });
+            alert('Room entry code updated successfully!');
+            document.getElementById('newRoomCodeInput').value = '';
+        }
 
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('usersContainer');
