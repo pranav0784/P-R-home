@@ -1,14 +1,13 @@
 {
-  "name": "quantum-messenger",
-  "version": "2.5.0",
-  "description": "Professional Quantum Real-time WhatsApp-Style Messenger",
+  "name": "alien-quantum-chat",
+  "version": "1.0.0",
+  "description": "Alien Cyberpunk Quantum Messenger",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "mongoose": "^8.0.0",
     "socket.io": "^4.7.2"
   }
 }
