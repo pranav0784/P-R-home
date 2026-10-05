@@ -16,7 +16,7 @@ const activeSockets = {};   // { socketId: username }
 let chatHistory = [];       // Global Array for Chat History Retention
 
 const MASTER_ADMIN_CODE = "pranav123";
-let currentDynamicCode = "4829"; // Default 4-Digit Passcode
+let currentDynamicCode = "4829"; // Default Passcode
 
 // Helper: 4-Digit Random Code Generator
 function generateRandomCode() {
@@ -33,10 +33,8 @@ io.on('connection', (socket) => {
         const isExistingUser = registeredUsers[username] ? true : false;
 
         if (isExistingUser) {
-            // Existing registered user directly logs in
             isAdmin = registeredUsers[username].isAdmin;
         } else {
-            // Verify passcode only for new users
             if (inputCode === MASTER_ADMIN_CODE) {
                 isAdmin = true;
             } else if (inputCode === currentDynamicCode) {
@@ -59,8 +57,7 @@ io.on('connection', (socket) => {
         socket.emit('login-success', {
             username: username,
             isAdmin: isAdmin,
-            avatarUrl: registeredUsers[username].avatarUrl,
-            currentCode: currentDynamicCode
+            avatarUrl: registeredUsers[username].avatarUrl
         });
 
         socket.emit('load-chat-history', chatHistory);
@@ -72,7 +69,7 @@ io.on('connection', (socket) => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
             currentDynamicCode = generateRandomCode();
-            io.emit('code-updated', { newCode: currentDynamicCode });
+            socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
@@ -82,7 +79,7 @@ io.on('connection', (socket) => {
         if (username && registeredUsers[username]?.isAdmin) {
             if (data.newCode && data.newCode.trim() !== '') {
                 currentDynamicCode = data.newCode.trim();
-                io.emit('code-updated', { newCode: currentDynamicCode });
+                socket.emit('code-updated', { newCode: currentDynamicCode });
             }
         }
     });
