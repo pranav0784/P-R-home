@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB media limit
+    maxHttpBufferSize: 1e8,
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -23,7 +23,7 @@ const registeredUsers = {}; // { username: { avatarUrl, isAdmin, lastSeen } }
 const activeSockets = {};   // { socketId: username }
 let chatHistory = [];       
 
-const MASTER_ADMIN_CODE = "pranav123";
+const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
 function generateRandomCode() {
@@ -46,7 +46,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'Invalid Passcode!');
+                return socket.emit('login-failed', 'अमान्य पासकोड (Invalid Passcode)!');
             }
         }
 
@@ -55,7 +55,9 @@ io.on('connection', (socket) => {
         if (!registeredUsers[username]) {
             registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
         } else {
-            if (avatarUrl) registeredUsers[username].avatarUrl = avatarUrl;
+            if (avatarUrl) {
+                registeredUsers[username].avatarUrl = avatarUrl;
+            }
             registeredUsers[username].lastSeen = 'Online';
         }
 
@@ -93,7 +95,7 @@ io.on('connection', (socket) => {
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
-            io.to(userToKick).emit('kicked-by-admin', 'You have been removed by Admin.');
+            io.to(userToKick).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
             updateUserList();
         }
     });
@@ -171,4 +173,4 @@ function updateUserList() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Quantum Messenger Pro Server Active on Port ${PORT}`));
+server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
