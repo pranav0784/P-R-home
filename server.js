@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB File Limit
+    maxHttpBufferSize: 1e8, // 100MB media limit
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -27,7 +27,6 @@ function generateRandomCode() {
 
 io.on('connection', (socket) => {
 
-    // 1. User Authentication
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
@@ -42,7 +41,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'Invalid passcode! Please enter correct passcode.');
+                return socket.emit('login-failed', 'Invalid Passcode!');
             }
         }
 
@@ -56,6 +55,7 @@ io.on('connection', (socket) => {
         }
 
         activeSockets[socket.id] = username;
+        socket.join(username); // Socket Room Join for Direct Delivery
 
         socket.emit('login-success', {
             username: username,
@@ -67,7 +67,6 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
-    // 2. Admin Passcode Controls
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -84,23 +83,17 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. Admin Kick Action
     socket.on('remove-user-by-admin', (data) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
 
-            const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === userToKick);
-            if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the Admin.');
-                delete activeSockets[targetSocketId];
-            }
+            io.to(userToKick).emit('kicked-by-admin', 'You have been removed by Admin.');
             updateUserList();
         }
     });
 
-    // 4. Update Profile Picture
     socket.on('update-avatar', (data) => {
         if (registeredUsers[data.username]) {
             registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
@@ -108,7 +101,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. Send Private Message (Text, Image, Video, Audio, Call Log)
+    // Private Message Fix: Deliver via Socket Rooms
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -124,54 +117,34 @@ io.on('connection', (socket) => {
 
         chatHistory.push(msgObject);
 
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('receive-private-message', msgObject);
-        }
-        socket.emit('receive-private-message', msgObject);
+        // Target aur Sender dono ke room me message emmit karo
+        io.to(data.targetName).emit('receive-private-message', msgObject);
+        io.to(data.senderName).emit('receive-private-message', msgObject);
     });
 
-    // 6. Delete for Everyone Broadcast
     socket.on('delete-message-everyone', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
 
-    // 7. Typing Indicator
     socket.on('typing', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
-        }
+        io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
     });
 
-    // 8. WebRTC Call Signals
     socket.on('call-user', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
-        }
+        io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
     });
 
     socket.on('answer-call', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('call-accepted', { answer: data.answer });
-        }
+        io.to(data.targetName).emit('call-accepted', { answer: data.answer });
     });
 
     socket.on('ice-candidate', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('ice-candidate', { candidate: data.candidate });
-        }
+        io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
     });
 
     socket.on('end-call', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('call-ended');
-        }
+        io.to(data.targetName).emit('call-ended');
     });
 
     socket.on('disconnect', () => {
@@ -196,4 +169,4 @@ function updateUserList() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Quantum Engine Active on Port ${PORT}`));
+server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
