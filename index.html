@@ -73,7 +73,6 @@
         .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
         
         .unread-badge { background: var(--accent-green); color: #000; font-size: 0.75rem; font-weight: bold; padding: 2px 7px; border-radius: 50%; display: inline-block; margin-left: 6px; }
-
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
@@ -103,7 +102,6 @@
         .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
         .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
         .blue-ticks { color: #53bdeb; font-weight: bold; }
-
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
@@ -113,6 +111,25 @@
         .btn-del-everyone { background: #ff5252; color: #fff; }
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
+
+        /* --- WHITEBOARD MODAL STYLES --- */
+        #whiteboardModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(11, 20, 26, 0.95); z-index: 8000; flex-direction: column;
+        }
+        .wb-header {
+            height: 60px; background: var(--header-dark); padding: 0 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .wb-tools { display: flex; align-items: center; gap: 15px; }
+        .wb-tool-btn {
+            background: #2a3942; border: 1px solid var(--card-border); color: #fff;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;
+        }
+        .wb-tool-btn.active { background: var(--accent-green); border-color: var(--accent-green); color: #000; }
+        .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; }
+        #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
@@ -191,6 +208,27 @@
         </div>
     </div>
 
+    <!-- WHITEBOARD MODAL -->
+    <div id="whiteboardModal">
+        <div class="wb-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h3 style="color:var(--accent-green); font-size:1.1rem;">Live Collaboration Whiteboard</h3>
+                <span id="wbPartnerBadge" style="font-size:0.8rem; color:var(--text-secondary);"></span>
+            </div>
+            <div class="wb-tools">
+                <input type="color" id="wbColorPicker" value="#00a884" title="Pen Color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
+                <input type="range" id="wbSizePicker" min="1" max="30" value="4" title="Brush Size" style="cursor:pointer; width:80px;">
+                <button class="wb-tool-btn active" id="wbPenBtn" onclick="setWbTool('pen')">✏️ Pen</button>
+                <button class="wb-tool-btn" id="wbEraserBtn" onclick="setWbTool('eraser')">🧹 Eraser</button>
+                <button class="wb-tool-btn" style="background:#ff5252; border-color:#ff5252; color:#fff;" onclick="clearWhiteboardLocal()">🗑 Clear</button>
+                <button class="wb-tool-btn" onclick="closeWhiteboardModal()">✕ Close</button>
+            </div>
+        </div>
+        <div class="wb-canvas-container" id="wbCanvasContainer">
+            <canvas id="liveWhiteboard"></canvas>
+        </div>
+    </div>
+
     <div id="callModal">
         <div class="call-top-bar">
             <h2 id="callTargetName" style="color:#fff; font-size:1.3rem;">User</h2>
@@ -256,6 +294,7 @@
                 </div>
                 
                 <div class="header-actions">
+                    <button class="btn-icon" style="color:var(--accent-green);" onclick="openWhiteboardModal()" title="Live Whiteboard">🎨</button>
                     <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">📞</button>
                     <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(true)" title="Video Call">📹</button>
                 </div>
@@ -291,7 +330,6 @@
 
     <!-- Notification Audio Alert -->
     <audio id="notifySound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
-    <audio id="remoteAudio" autoplay style="display:none;"></audio>
 
     <script>
         const socket = io();
@@ -308,6 +346,10 @@
         let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
 
+        // Whiteboard Variables
+        let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
+        let lastX = 0, lastY = 0;
+
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         window.onload = () => {
@@ -320,6 +362,7 @@
                 if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
                 login(true);
             }
+            initWhiteboardEngine();
         };
 
         function login(isAuto = false) {
@@ -330,9 +373,7 @@
             if(!myName || !code) return isAuto ? null : alert('Username & Passcode are required!');
 
             const savedAvatar = localStorage.getItem('quantum_avatar');
-            if (!avatar && savedAvatar) {
-                avatar = savedAvatar;
-            }
+            if (!avatar && savedAvatar) avatar = savedAvatar;
 
             localStorage.setItem('quantum_username', myName);
             localStorage.setItem('quantum_passcode', code);
@@ -352,9 +393,7 @@
             if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
         });
 
-        socket.on('login-failed', msg => {
-            alert(msg);
-        });
+        socket.on('login-failed', msg => alert(msg));
 
         function generateCode() { socket.emit('generate-new-code'); }
         function setCustomCode() {
@@ -436,18 +475,12 @@
 
         socket.on('receive-private-message', (msgObj) => {
             allHistory.push(msgObj);
-            
-            // Agar hum usi chat window par hain jahan message aaya ya bheja hai
             if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
                 renderFilteredHistory();
             } 
-            
-            // Agar message hamare liye hai aur humne woh chat open nahi ki hai
             if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
                 unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
                 localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-                
-                // Sound notification bajayein
                 const sound = document.getElementById('notifySound');
                 if(sound) sound.play().catch(e => console.log('Audio play blocked'));
             }
@@ -526,9 +559,7 @@
                 
                 let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
                 
-                if(msg.replyTo) {
-                    html += `<div class="reply-quote">${msg.replyTo}</div>`;
-                }
+                if(msg.replyTo) html += `<div class="reply-quote">${msg.replyTo}</div>`;
 
                 if(msg.mediaType === 'text') html += msg.message;
                 else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
@@ -581,7 +612,6 @@
             const txt = document.getElementById('msgInput').value.trim();
             if(!txt || !selectedTargetUser) return;
             
-            // Device ka local time nikalein taaki bilkul sahi time dikhe
             const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
             socket.emit('send-private-message', {
@@ -665,6 +695,137 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
+        /* --- LIVE HD WHITEBOARD ENGINE --- */
+        function initWhiteboardEngine() {
+            wbCanvas = document.getElementById('liveWhiteboard');
+            wbCtx = wbCanvas.getContext('2d');
+
+            resizeWbCanvas();
+            window.addEventListener('resize', resizeWbCanvas);
+
+            wbCanvas.addEventListener('mousedown', startWbDraw);
+            wbCanvas.addEventListener('mousemove', drawWbStroke);
+            wbCanvas.addEventListener('mouseup', stopWbDraw);
+            wbCanvas.addEventListener('mouseleave', stopWbDraw);
+
+            wbCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startWbDraw(e.touches[0]); });
+            wbCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawWbStroke(e.touches[0]); });
+            wbCanvas.addEventListener('touchend', (e) => { e.preventDefault(); stopWbDraw(); });
+        }
+
+        function resizeWbCanvas() {
+            if(!wbCanvas) return;
+            const container = document.getElementById('wbCanvasContainer');
+            const dpr = window.devicePixelRatio || 1;
+            
+            const oldData = wbCanvas.toDataURL();
+
+            wbCanvas.width = container.clientWidth * dpr;
+            wbCanvas.height = container.clientHeight * dpr;
+            wbCtx.scale(dpr, dpr);
+
+            const img = new Image();
+            img.src = oldData;
+            img.onload = () => { wbCtx.drawImage(img, 0, 0, container.clientWidth, container.clientHeight); };
+        }
+
+        function openWhiteboardModal() {
+            if(!selectedTargetUser) return alert('Select a user to collaborate on Whiteboard!');
+            document.getElementById('whiteboardModal').style.display = 'flex';
+            document.getElementById('wbPartnerBadge').innerText = `with ${selectedTargetUser}`;
+            setTimeout(resizeWbCanvas, 100);
+        }
+
+        function closeWhiteboardModal() {
+            document.getElementById('whiteboardModal').style.display = 'none';
+        }
+
+        function setWbTool(mode) {
+            wbMode = mode;
+            document.getElementById('wbPenBtn').classList.toggle('active', mode === 'pen');
+            document.getElementById('wbEraserBtn').classList.toggle('active', mode === 'eraser');
+        }
+
+        function startWbDraw(e) {
+            isDrawing = true;
+            const rect = wbCanvas.getBoundingClientRect();
+            lastX = (e.clientX || e.pageX) - rect.left;
+            lastY = (e.clientY || e.pageY) - rect.top;
+        }
+
+        function drawWbStroke(e) {
+            if(!isDrawing || !selectedTargetUser) return;
+            const rect = wbCanvas.getBoundingClientRect();
+            const currentX = (e.clientX || e.pageX) - rect.left;
+            const currentY = (e.clientY || e.pageY) - rect.top;
+
+            const color = document.getElementById('wbColorPicker').value;
+            const size = document.getElementById('wbSizePicker').value;
+
+            wbCtx.lineWidth = size;
+            wbCtx.lineCap = 'round';
+            wbCtx.lineJoin = 'round';
+
+            if(wbMode === 'eraser') {
+                wbCtx.strokeStyle = '#111b21';
+                wbCtx.lineWidth = size * 3;
+            } else {
+                wbCtx.strokeStyle = color;
+            }
+
+            wbCtx.beginPath();
+            wbCtx.moveTo(lastX, lastY);
+            wbCtx.lineTo(currentX, currentY);
+            wbCtx.stroke();
+
+            // Emit live coordinates to partner via server
+            socket.emit('wb-draw-data', {
+                targetName: selectedTargetUser,
+                x0: lastX / rect.width,
+                y0: lastY / rect.height,
+                x1: currentX / rect.width,
+                y1: currentY / rect.height,
+                color: wbMode === 'eraser' ? '#111b21' : color,
+                size: wbMode === 'eraser' ? size * 3 : Number(size)
+            });
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        function stopWbDraw() { isDrawing = false; }
+
+        function clearWhiteboardLocal() {
+            const rect = wbCanvas.getBoundingClientRect();
+            wbCtx.clearRect(0, 0, rect.width, rect.height);
+            if(selectedTargetUser) {
+                socket.emit('wb-clear-data', { targetName: selectedTargetUser });
+            }
+        }
+
+        socket.on('wb-draw-receive', (data) => {
+            if(selectedTargetUser === data.senderName && wbCanvas) {
+                const rect = wbCanvas.getBoundingClientRect();
+                wbCtx.lineWidth = data.size;
+                wbCtx.lineCap = 'round';
+                wbCtx.lineJoin = 'round';
+                wbCtx.strokeStyle = data.color;
+
+                wbCtx.beginPath();
+                wbCtx.moveTo(data.x0 * rect.width, data.y0 * rect.height);
+                wbCtx.lineTo(data.x1 * rect.width, data.y1 * rect.height);
+                wbCtx.stroke();
+            }
+        });
+
+        socket.on('wb-clear-receive', (data) => {
+            if(selectedTargetUser === data.senderName && wbCanvas) {
+                const rect = wbCanvas.getBoundingClientRect();
+                wbCtx.clearRect(0, 0, rect.width, rect.height);
+            }
+        });
+
+        /* --- WEBRTC CALL ENGINE --- */
         async function getHDMediaStream(video, facing) {
             const constraints = {
                 audio: { echoCancellation: true, noiseSuppression: true },
@@ -691,7 +852,6 @@
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
-            // Sirf local camera/mic stream start karein, remote tab tak connect na karein jab tak call accept na ho
             localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
             document.getElementById('pipVideo').srcObject = localStream;
 
@@ -799,7 +959,6 @@
 
         async function toggleScreenShare() {
             if (!peerConnection) return;
-            
             if (!isScreenSharing) {
                 try {
                     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
