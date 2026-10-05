@@ -104,6 +104,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 5. प्राइवेट मैसेज (टेक्स्ट, फोटो, वीडियो, ऑडियो, कॉल लॉग)
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -111,7 +112,7 @@ io.on('connection', (socket) => {
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
-            mediaType: data.mediaType,
+            mediaType: data.mediaType, // text, image, video, audio, call_log
             mediaUrl: data.mediaUrl || null,
             time: timeStr
         };
@@ -125,18 +126,20 @@ io.on('connection', (socket) => {
         socket.emit('receive-private-message', msgObject);
     });
 
-    socket.on('delete-message', (data) => {
+    // 6. Delete for Everyone
+    socket.on('delete-message-everyone', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
-        io.emit('message-deleted', { msgId: data.msgId });
+        io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
 
     socket.on('typing', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[socket.id] === data.targetName);
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
             io.to(targetSocketId).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
         }
     });
 
+    // WebRTC Calls Signaling
     socket.on('call-user', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
