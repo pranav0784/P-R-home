@@ -1,7 +1,7 @@
 {
   "name": "quantum-messenger",
-  "version": "2.0.0",
-  "description": "Professional Quantum Real-time Messenger",
+  "version": "2.5.0",
+  "description": "Professional Quantum Real-time WhatsApp-Style Messenger",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
