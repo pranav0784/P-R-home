@@ -94,7 +94,12 @@
         
         .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
         .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
-        .blue-ticks { color: #53bdeb; font-weight: bold; }
+        
+        /* Tick Custom Styling */
+        .tick-icon { font-weight: bold; font-size: 0.75rem; }
+        .tick-sent { color: #8696a0; }
+        .tick-delivered { color: #8696a0; }
+        .tick-read { color: #53bdeb; }
 
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
 
@@ -347,6 +352,9 @@
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
+            
+            // Mark unread messages as read
+            socket.emit('mark-messages-read', { readerName: myName, senderName: selectedTargetUser });
             renderFilteredHistory();
         }
 
@@ -358,8 +366,20 @@
         socket.on('receive-private-message', (msgObj) => {
             allHistory.push(msgObj);
             if(selectedTargetUser === msgObj.senderName || msgObj.senderName === myName) {
+                if (selectedTargetUser === msgObj.senderName) {
+                    socket.emit('mark-messages-read', { readerName: myName, senderName: selectedTargetUser });
+                }
                 renderFilteredHistory();
             }
+        });
+
+        socket.on('messages-read-status-updated', (data) => {
+            allHistory.forEach(m => {
+                if (data.updatedIds.includes(m.msgId)) {
+                    m.status = 'read';
+                }
+            });
+            renderFilteredHistory();
         });
 
         socket.on('message-deleted-everyone', (data) => {
@@ -444,7 +464,19 @@
                 else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
                 else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 
-                html += `<div class="time-ticks"><span>${msg.time}</span> ${isMe ? '<span class="blue-ticks">✓✓</span>' : ''}</div>`;
+                // Dynamic Ticks Rendering
+                let tickHtml = '';
+                if(isMe) {
+                    if (msg.status === 'read') {
+                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`;
+                    } else if (msg.status === 'delivered') {
+                        tickHtml = `<span class="tick-icon tick-delivered">✓✓</span>`;
+                    } else {
+                        tickHtml = `<span class="tick-icon tick-sent">✓</span>`;
+                    }
+                }
+
+                html += `<div class="time-ticks"><span>${msg.time}</span> ${tickHtml}</div>`;
                 div.innerHTML = html;
                 win.appendChild(div);
             });
