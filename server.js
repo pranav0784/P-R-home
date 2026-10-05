@@ -17,7 +17,9 @@ let chatHistory = [];       // Global Array for Chat History Retention
 
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829"; // Default 4-Digit Passcode
-let currentAppLogo = "https://cdn-icons-png.flaticon.com/512/2099/2099190.png"; // Futuristic Quantum Logo
+
+// Default Custom Logo (ImgBB Direct URL for your uploaded emblem)
+let currentAppLogo = "https://i.ibb.co/3k8xYmP/custom-logo.jpg"; 
 
 // Helper: 4-Digit Random Code Generator
 function generateRandomCode() {
