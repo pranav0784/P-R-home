@@ -80,7 +80,6 @@
         /* Admin Code Control Box */
         .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
         .admin-box button { width: 100%; padding: 10px; background: var(--accent-green); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
-        .code-display { font-size: 0.9rem; color: #ffeb3b; text-align: center; margin-bottom: 8px; font-weight: bold; background: #111b21; padding: 8px; border-radius: 6px; }
 
         .user-list { flex: 1; overflow-y: auto; }
         .user-item { padding: 14px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: background 0.2s; position: relative; }
@@ -172,7 +171,6 @@
 
             <!-- Admin Passcode Box -->
             <div class="admin-box" id="adminBox">
-                <div class="code-display" id="codeDisplay">Current Code: ----</div>
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input type="text" id="customCodeInput" placeholder="Enter New Code" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none; font-size: 0.85rem;">
                     <button onclick="setCustomCode()" style="padding: 8px 12px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem;">Change</button>
@@ -240,7 +238,6 @@
             
             if(data.isAdmin) {
                 document.getElementById('adminBox').style.display = 'block';
-                document.getElementById('codeDisplay').innerText = `Current Code: ${data.currentCode}`;
             }
         });
 
@@ -256,8 +253,7 @@
         }
 
         socket.on('code-updated', (data) => {
-            const disp = document.getElementById('codeDisplay');
-            if(disp) disp.innerText = `Current Code: ${data.newCode}`;
+            alert(`New passcode set successfully: ${data.newCode}`);
         });
 
         function updateProfileLogo(input) {
