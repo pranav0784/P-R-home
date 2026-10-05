@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum WhatsApp</title>
+    <title>Quantum WhatsApp - Secure</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -20,12 +20,17 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, sans-serif; }
         body { background: var(--wa-bg); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
 
-        .app-container { width: 100vw; height: 100vh; display: flex; flex-direction: row; overflow: hidden; }
+        /* लॉगिन ओवरले */
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--wa-bg); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-card { background: var(--wa-panel); padding: 30px; border-radius: 12px; width: 320px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
+        .auth-card h2 { color: var(--wa-green); margin-bottom: 20px; }
+        .auth-card input { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; margin-bottom: 12px; }
+        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-green); color: #fff; font-weight: bold; cursor: pointer; margin-top: 5px; }
+
+        .app-container { width: 100vw; height: 100vh; display: none; flex-direction: row; overflow: hidden; }
 
         .sidebar { width: 320px; background: var(--wa-panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; }
-        .login-box { padding: 12px; border-bottom: 1px solid #222d34; }
-        .input-box { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; margin-bottom: 8px; }
+        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
         .user-list { flex: 1; overflow-y: auto; }
         .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .user-item:hover, .user-item.active { background: #202c33; }
@@ -43,14 +48,13 @@
         .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
 
         .chat-input { height: 62px; background: var(--wa-header); padding: 10px; display: flex; align-items: center; gap: 8px; }
+        .input-box { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; }
         .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; }
 
-        /* कॉल स्क्रीन और वीडियो साइज फिक्स */
         .call-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:100; padding: 15px; }
         .video-box { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 600px; }
         video { width: 100%; max-width: 260px; height: 190px; background: #222; border-radius: 12px; object-fit: cover; }
 
-        /* मोबाइल स्क्रीन के लिए रिस्पॉन्सिव मीडिया क्वेरी */
         @media (max-width: 768px) {
             .app-container { flex-direction: column; }
             .sidebar { width: 100%; height: auto; max-height: 35vh; }
@@ -61,23 +65,30 @@
 </head>
 <body>
 
-    <div class="app-container">
+    <!-- लॉगिन / ऑथेंटिकेशन स्क्रीन -->
+    <div id="authOverlay">
+        <div class="auth-card">
+            <h2>Quantum WhatsApp</h2>
+            <input type="text" id="inputName" placeholder="Your Name">
+            <input type="password" id="inputAdminCode" placeholder="Admin Secret Code (Optional)">
+            <button onclick="login()">Join Chat</button>
+        </div>
+    </div>
+
+    <!-- मुख्य ऐप इंटरफ़ेस -->
+    <div class="app-container" id="appContainer">
         <div class="sidebar">
             <div class="sidebar-header">
-                <strong style="color:var(--wa-green)">Quantum WhatsApp</strong>
+                <strong style="color:var(--wa-green)" id="userRoleTitle">Quantum WhatsApp</strong>
             </div>
-            <div class="login-box">
-                <input type="text" id="myUsername" class="input-box" placeholder="Your Name">
-                <button onclick="register()" style="width:100%; padding:10px; background:var(--wa-green); border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Set Profile Name</button>
-            </div>
-            <div style="padding:10px; font-size:0.85rem; color:var(--text-secondary);">ONLINE USERS:</div>
+            <div style="padding:10px; font-size:0.85rem; color:var(--text-secondary);">CHATS:</div>
             <div class="user-list" id="usersContainer"></div>
         </div>
 
         <div class="chat-main">
             <div class="chat-header">
                 <div>
-                    <strong id="targetUserName">Select a user to chat</strong>
+                    <strong id="targetUserName">Select a chat</strong>
                     <div id="targetStatus" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
                 </div>
                 <div class="call-btns" id="callBtns" style="display:none;">
@@ -98,7 +109,7 @@
         </div>
     </div>
 
-    <!-- Call Screen -->
+    <!-- कॉल स्क्रीन -->
     <div class="call-screen" id="callScreen">
         <h3 id="callTitle" style="margin-bottom:15px; color:#fff;">Calling...</h3>
         <div class="video-box">
@@ -110,14 +121,26 @@
 
     <script>
         const socket = io();
-        let myName = '', selectedTargetSocketId = null, localStream = null, typingTimeout = null;
+        let myName = '', isAdmin = false, selectedTargetSocketId = null, localStream = null, typingTimeout = null;
 
-        function register() {
-            myName = document.getElementById('myUsername').value.trim();
-            if(!myName) return alert('Enter your name!');
-            socket.emit('register-user', { username: myName });
-            alert('Registered as: ' + myName);
+        function login() {
+            myName = document.getElementById('inputName').value.trim();
+            const code = document.getElementById('inputAdminCode').value.trim();
+            if(!myName) return alert('Please enter your name!');
+
+            socket.emit('login-attempt', { username: myName, adminCode: code });
         }
+
+        socket.on('login-success', (data) => {
+            isAdmin = data.isAdmin;
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+            document.getElementById('userRoleTitle').innerText = isAdmin ? 'Admin Panel 👑' : 'User Panel';
+        });
+
+        socket.on('login-failed', (msg) => {
+            alert(msg);
+        });
 
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('usersContainer');
@@ -126,7 +149,7 @@
                 if(u.socketId !== socket.id) {
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetSocketId === u.socketId ? 'active' : ''}`;
-                    div.innerHTML = `<span>${u.username}</span><div class="online-dot"></div>`;
+                    div.innerHTML = `<span>${u.username} ${u.isAdmin ? '👑' : ''}</span><div class="online-dot"></div>`;
                     div.onclick = () => selectUser(u.socketId, u.username);
                     container.appendChild(div);
                 }
