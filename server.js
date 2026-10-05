@@ -8,24 +8,23 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 100MB
-    pingInterval: 5000,
-    pingTimeout: 10000,
+    pingInterval: 3000,
+    pingTimeout: 7000,
     cors: { origin: "*" }
 });
 
 app.use(express.static(__dirname));
 
-// --- MongoDB Database Schemas ---
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/quantum_db";
 
 let isDbConnected = false;
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ MongoDB Database Connected Successfully!");
+        console.log("✅ MongoDB Connected!");
         isDbConnected = true;
     })
-    .catch(err => {
-        console.log("⚠️ MongoDB Not Configured. Running with High-Speed Memory Storage Engine.");
+    .catch(() => {
+        console.log("⚠️ Running in Memory Storage Mode.");
     });
 
 const UserSchema = new mongoose.Schema({
@@ -52,7 +51,6 @@ const MessageSchema = new mongoose.Schema({
 const UserModel = mongoose.model('User', UserSchema);
 const MessageModel = mongoose.model('Message', MessageSchema);
 
-// In-Memory Fast Cache
 const activeSockets = {};   // { socketId: username }
 const memoryUsers = {};
 let memoryChatHistory = [];
@@ -60,13 +58,17 @@ let memoryChatHistory = [];
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829";
 
-// Render Self-Ping Mechanism (Anti-Sleep)
+// Anti-Sleep Ping for Render
 setInterval(() => {
     http.get(`http://localhost:${process.env.PORT || 3000}`, () => {}).on('error', () => {});
-}, 240000); // 4 minutes
+}, 200000);
 
 function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+function getFormattedTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 io.on('connection', (socket) => {
@@ -94,6 +96,7 @@ io.on('connection', (socket) => {
         }
 
         const userAvatar = avatarUrl || (dbUser ? dbUser.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`);
+        const loginTimeStr = `Last seen today at ${getFormattedTime()}`;
 
         const userData = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online', isKicked: false };
 
@@ -112,12 +115,11 @@ io.on('connection', (socket) => {
             avatarUrl: userAvatar
         });
 
-        // Update undelivered messages to 'delivered'
         if (isDbConnected) {
             await MessageModel.updateMany({ targetName: username, status: 'sent' }, { status: 'delivered' });
             const history = await MessageModel.find({
                 $or: [{ senderName: username }, { targetName: username }]
-            }).sort({ timestamp: 1 }).limit(200);
+            }).sort({ timestamp: 1 }).limit(300);
             socket.emit('load-chat-history', history);
         } else {
             memoryChatHistory.forEach(m => {
@@ -181,7 +183,7 @@ io.on('connection', (socket) => {
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
             status: isTargetOnline ? 'delivered' : 'sent',
-            time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            time: data.clientTime || getFormattedTime()
         };
 
         if (isDbConnected) {
@@ -230,6 +232,7 @@ io.on('connection', (socket) => {
         io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
     });
 
+    // --- Advanced WebRTC Signaling ---
     socket.on('call-user', (data) => {
         io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
     });
@@ -249,13 +252,12 @@ io.on('connection', (socket) => {
     socket.on('disconnect', async () => {
         const username = activeSockets[socket.id];
         if (username) {
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const lastSeenStr = `Last seen at ${timeStr}`;
+            const timeStr = `Last seen today at ${getFormattedTime()}`;
 
             if (isDbConnected) {
-                await UserModel.findOneAndUpdate({ username }, { lastSeen: lastSeenStr });
+                await UserModel.findOneAndUpdate({ username }, { lastSeen: timeStr });
             } else if (memoryUsers[username]) {
-                memoryUsers[username].lastSeen = lastSeenStr;
+                memoryUsers[username].lastSeen = timeStr;
             }
 
             delete activeSockets[socket.id];
@@ -281,4 +283,4 @@ async function updateUserList() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Quantum Production Server Running on Port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server Running on Port ${PORT}`));
