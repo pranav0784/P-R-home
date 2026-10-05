@@ -143,7 +143,6 @@ io.on('connection', (socket) => {
         io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
     });
 
-    // Whiteboard Real-Time Sync Handlers
     socket.on('wb-draw-data', (data) => {
         const targetSocketId = getUserSocketId(data.targetName);
         if (targetSocketId) {
