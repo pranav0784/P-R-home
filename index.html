@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -21,7 +21,7 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
-        /* Splash Screen Animation */
+        /* Splash Screen */
         #splashScreen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
@@ -41,7 +41,7 @@
         }
         @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
 
-        /* Auth / Login Overlay */
+        /* Auth Card */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .auth-card {
             background: var(--panel-dark); padding: 30px; border-radius: 20px; width: 90%; max-width: 380px;
@@ -75,7 +75,6 @@
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
         .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green); }
 
-        /* Kick Button Style */
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: transform 0.1s; }
         .kick-btn:active { transform: scale(0.9); }
 
@@ -87,7 +86,7 @@
 
         .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
         
-        /* Animated WhatsApp Chat Bubbles */
+        /* Chat Bubbles */
         .msg {
             max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem; word-break: break-word; position: relative;
             animation: slideUp 0.3s ease-out forwards;
@@ -102,11 +101,10 @@
         .msg audio { max-width: 240px; margin-top: 6px; }
         .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
 
-        /* Delete Button on Hover */
         .delete-btn { position: absolute; top: 4px; right: 6px; font-size: 0.75rem; color: #ff5252; cursor: pointer; display: none; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; }
         .msg:hover .delete-btn { display: block; }
 
-        /* Input Controls */
+        /* Input Bar */
         .chat-input { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
         .input-box { flex: 1; padding: 12px 18px; border-radius: 22px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
         .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.4rem; cursor: pointer; transition: transform 0.1s; }
@@ -122,9 +120,9 @@
 </head>
 <body>
 
-    <!-- Splash Screen -->
+    <!-- Splash Screen with Quantum Neon Logo -->
     <div id="splashScreen">
-        <img id="splashAppLogo" src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" class="splash-logo">
+        <img id="splashAppLogo" src="https://cdn-icons-png.flaticon.com/512/2099/2099190.png" class="splash-logo">
         <div class="splash-title">Quantum Messenger</div>
     </div>
 
@@ -132,19 +130,22 @@
     <div id="authOverlay">
         <div class="auth-card">
             <h2>Quantum Login</h2>
-            <input type="text" id="inputName" placeholder="आपका नाम (Username)">
-            <input type="password" id="inputCode" placeholder="पासकोड (केवल नए यूज़र के लिए)">
+            <input type="text" id="inputName" placeholder="Username">
+            <input type="password" id="inputCode" placeholder="Passcode (For New Users)">
             <input type="text" id="inputAvatar" placeholder="Profile Logo URL (Optional)">
             <button onclick="login()">Enter Chat</button>
         </div>
     </div>
 
-    <!-- Main Messenger Layout -->
+    <!-- Main App Layout -->
     <div class="app-container" id="appContainer">
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile-badge">
-                    <img id="myAvatarImg" src="" class="my-avatar" title="Your Avatar">
+                    <!-- Tap DP to open phone gallery -->
+                    <img id="myAvatarImg" src="" class="my-avatar" title="Click to change logo" onclick="document.getElementById('avatarFileInput').click()">
+                    <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
+                    
                     <div>
                         <strong id="myUsernameText" style="font-size:1rem;">You</strong>
                         <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Pro User</div>
@@ -152,10 +153,14 @@
                 </div>
             </div>
 
-            <!-- Admin Passcode Control Box -->
+            <!-- Admin Passcode Box with Custom Change Option -->
             <div class="admin-box" id="adminBox">
                 <div class="code-display" id="codeDisplay">Current Code: ----</div>
-                <button onclick="generateCode()">🎲 Generate New Dynamic Code</button>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <input type="text" id="customCodeInput" placeholder="Enter New Code" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none; font-size: 0.85rem;">
+                    <button onclick="setCustomCode()" style="padding: 8px 12px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem;">Change</button>
+                </div>
+                <button onclick="generateCode()">🎲 Generate Random Code</button>
             </div>
 
             <div style="padding:12px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
@@ -168,7 +173,7 @@
                     <button class="btn-icon" onclick="closeMobileChat()" style="display:none;" id="backBtn">←</button>
                     <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar">
                     <div>
-                        <strong id="targetNameText">चैट करने के लिए किसी यूज़र को चुनें</strong>
+                        <strong id="targetNameText">Select a user to chat</strong>
                         <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
                     </div>
                 </div>
@@ -180,7 +185,7 @@
                 <button class="btn-icon" onclick="document.getElementById('imgInput').click()">📎</button>
                 <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="sendPhoto(this)">
                 
-                <input type="text" id="msgInput" class="input-box" placeholder="संदेश टाइप करें..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
+                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
                 
                 <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()">🎙</button>
                 <button class="btn-icon" style="color:var(--accent-green);" onclick="sendText()">➔</button>
@@ -193,7 +198,6 @@
         let myName = '', selectedTargetUser = null, allHistory = [];
         let mediaRecorder = null, audioChunks = [], isRecording = false;
 
-        // Auto-fill Saved Username
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
             if(savedName) document.getElementById('inputName').value = savedName;
@@ -204,7 +208,7 @@
             const code = document.getElementById('inputCode').value.trim();
             const avatar = document.getElementById('inputAvatar').value.trim();
             
-            if(!myName) return alert('कृपया अपना नाम दर्ज करें');
+            if(!myName) return alert('Please enter your username');
 
             localStorage.setItem('quantum_username', myName);
             socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
@@ -227,12 +231,30 @@
 
         function generateCode() { socket.emit('generate-new-code'); }
 
+        function setCustomCode() {
+            const newCode = document.getElementById('customCodeInput').value.trim();
+            if(!newCode) return alert('Please enter a passcode');
+            socket.emit('set-custom-code', { newCode: newCode });
+            document.getElementById('customCodeInput').value = '';
+        }
+
         socket.on('code-updated', (data) => {
             const disp = document.getElementById('codeDisplay');
             if(disp) disp.innerText = `Current Code: ${data.newCode}`;
         });
 
-        // 🟢 Dynamic User List with Admin Kick Feature
+        function updateProfileLogo(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const newAvatarUrl = e.target.result;
+                    document.getElementById('myAvatarImg').src = newAvatarUrl;
+                    socket.emit('update-avatar', { username: myName, newAvatarUrl: newAvatarUrl });
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
@@ -258,14 +280,12 @@
             });
         });
 
-        // Admin Function to Kick User
         function removeUser(targetUsername) {
-            if(confirm(`क्या आप वाकई ${targetUsername} को ऐप से हटाना चाहते हैं?`)) {
+            if(confirm(`Are you sure you want to kick ${targetUsername}?`)) {
                 socket.emit('remove-user-by-admin', { targetUsername: targetUsername });
             }
         }
 
-        // Listener for Kicked User
         socket.on('kicked-by-admin', (reason) => {
             alert(reason);
             localStorage.removeItem('quantum_username');
@@ -281,7 +301,6 @@
             renderFilteredHistory();
         }
 
-        // WhatsApp-Style Persistent Chat Load
         socket.on('load-chat-history', (history) => {
             allHistory = history;
             if(selectedTargetUser) renderFilteredHistory();
@@ -300,7 +319,7 @@
         });
 
         function deleteMsg(msgId) {
-            if(confirm('क्या आप इस मैसेज को सभी के लिए डिलीट (Delete for Everyone) करना चाहते हैं?')) {
+            if(confirm('Delete message for everyone?')) {
                 socket.emit('delete-message', { msgId });
             }
         }
@@ -366,7 +385,7 @@
         }
 
         async function toggleRecordAudio() {
-            if(!selectedTargetUser) return alert('पहले किसी यूज़र को चुनें!');
+            if(!selectedTargetUser) return alert('Select a user first!');
             const btn = document.getElementById('voiceBtn');
             
             if(!isRecording) {
