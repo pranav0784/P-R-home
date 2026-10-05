@@ -8,8 +8,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 100MB
-    pingInterval: 3000,
-    pingTimeout: 7000,
+    pingInterval: 5000,
+    pingTimeout: 15000,
     cors: { origin: "*" }
 });
 
@@ -20,7 +20,7 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/quantum_db
 let isDbConnected = false;
 mongoose.connect(MONGO_URI)
     .then(() => {
-        console.log("✅ MongoDB Connected!");
+        console.log("✅ MongoDB Database Connected Successfully!");
         isDbConnected = true;
     })
     .catch(() => {
@@ -52,13 +52,13 @@ const UserModel = mongoose.model('User', UserSchema);
 const MessageModel = mongoose.model('Message', MessageSchema);
 
 const activeSockets = {};   // { socketId: username }
-const memoryUsers = {};
+const registeredUserRegistry = {}; // { username: { avatarUrl, isAdmin, lastSeen, isKicked } }
 let memoryChatHistory = [];
 
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829";
 
-// Anti-Sleep Ping for Render
+// Render Anti-Sleep Keep-Alive
 setInterval(() => {
     http.get(`http://localhost:${process.env.PORT || 3000}`, () => {}).on('error', () => {});
 }, 200000);
@@ -77,7 +77,7 @@ io.on('connection', (socket) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
 
-        let dbUser = isDbConnected ? await UserModel.findOne({ username }) : memoryUsers[username];
+        let dbUser = isDbConnected ? await UserModel.findOne({ username }) : registeredUserRegistry[username];
 
         if (dbUser && dbUser.isKicked) {
             return socket.emit('login-failed', 'You were removed by Admin. Please re-authenticate.');
@@ -96,15 +96,19 @@ io.on('connection', (socket) => {
         }
 
         const userAvatar = avatarUrl || (dbUser ? dbUser.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`);
-        const loginTimeStr = `Last seen today at ${getFormattedTime()}`;
 
-        const userData = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online', isKicked: false };
+        const userData = {
+            username,
+            avatarUrl: userAvatar,
+            isAdmin,
+            lastSeen: 'Online',
+            isKicked: false
+        };
 
         if (isDbConnected) {
             await UserModel.findOneAndUpdate({ username }, userData, { upsert: true, new: true });
-        } else {
-            memoryUsers[username] = userData;
         }
+        registeredUserRegistry[username] = userData;
 
         activeSockets[socket.id] = username;
         socket.join(username);
@@ -128,7 +132,7 @@ io.on('connection', (socket) => {
             socket.emit('load-chat-history', memoryChatHistory);
         }
 
-        updateUserList();
+        await updateUserList();
     });
 
     socket.on('generate-new-code', () => {
@@ -153,22 +157,24 @@ io.on('connection', (socket) => {
             const userToKick = data.targetUsername;
             if (isDbConnected) {
                 await UserModel.findOneAndUpdate({ username: userToKick }, { isKicked: true });
-            } else if (memoryUsers[userToKick]) {
-                memoryUsers[userToKick].isKicked = true;
+            }
+            if (registeredUserRegistry[userToKick]) {
+                registeredUserRegistry[userToKick].isKicked = true;
             }
 
             io.to(userToKick).emit('kicked-by-admin', 'You have been removed by Admin.');
-            updateUserList();
+            await updateUserList();
         }
     });
 
     socket.on('update-avatar', async (data) => {
         if (isDbConnected) {
             await UserModel.findOneAndUpdate({ username: data.username }, { avatarUrl: data.newAvatarUrl });
-        } else if (memoryUsers[data.username]) {
-            memoryUsers[data.username].avatarUrl = data.newAvatarUrl;
         }
-        updateUserList();
+        if (registeredUserRegistry[data.username]) {
+            registeredUserRegistry[data.username].avatarUrl = data.newAvatarUrl;
+        }
+        await updateUserList();
     });
 
     socket.on('send-private-message', async (data) => {
@@ -232,7 +238,6 @@ io.on('connection', (socket) => {
         io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
     });
 
-    // --- Advanced WebRTC Signaling ---
     socket.on('call-user', (data) => {
         io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
     });
@@ -252,16 +257,19 @@ io.on('connection', (socket) => {
     socket.on('disconnect', async () => {
         const username = activeSockets[socket.id];
         if (username) {
-            const timeStr = `Last seen today at ${getFormattedTime()}`;
-
-            if (isDbConnected) {
-                await UserModel.findOneAndUpdate({ username }, { lastSeen: timeStr });
-            } else if (memoryUsers[username]) {
-                memoryUsers[username].lastSeen = timeStr;
-            }
-
             delete activeSockets[socket.id];
-            updateUserList();
+            
+            const isStillConnected = Object.values(activeSockets).includes(username);
+            if (!isStillConnected) {
+                const lastSeenStr = `Last seen today at ${getFormattedTime()}`;
+                if (isDbConnected) {
+                    await UserModel.findOneAndUpdate({ username }, { lastSeen: lastSeenStr });
+                }
+                if (registeredUserRegistry[username]) {
+                    registeredUserRegistry[username].lastSeen = lastSeenStr;
+                }
+            }
+            await updateUserList();
         }
     });
 });
@@ -271,16 +279,22 @@ async function updateUserList() {
     if (isDbConnected) {
         rawList = await UserModel.find({ isKicked: false }).lean();
     } else {
-        rawList = Object.values(memoryUsers).filter(u => !u.isKicked);
+        rawList = Object.values(registeredUserRegistry).filter(u => !u.isKicked);
     }
 
-    const list = rawList.map(user => ({
-        ...user,
-        isOnline: Object.values(activeSockets).includes(user.username)
-    }));
+    const onlineUsernames = Object.values(activeSockets);
+
+    const list = rawList.map(user => {
+        const isOnline = onlineUsernames.includes(user.username);
+        return {
+            ...user,
+            isOnline: isOnline,
+            lastSeen: isOnline ? 'Online' : (user.lastSeen || 'Offline')
+        };
+    });
 
     io.emit('update-user-list', list);
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 Server Running on Port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Quantum Pro Server Active on Port ${PORT}`));
