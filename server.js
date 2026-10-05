@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB media limit
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -55,12 +55,19 @@ io.on('connection', (socket) => {
         }
 
         activeSockets[socket.id] = username;
-        socket.join(username); // Socket Room Join for Direct Delivery
+        socket.join(username);
 
         socket.emit('login-success', {
             username: username,
             isAdmin: isAdmin,
             avatarUrl: registeredUsers[username].avatarUrl
+        });
+
+        // Update undelivered messages to 'delivered' when user comes online
+        chatHistory.forEach(m => {
+            if (m.targetName === username && m.status === 'sent') {
+                m.status = 'delivered';
+            }
         });
 
         socket.emit('load-chat-history', chatHistory);
@@ -101,9 +108,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Private Message Fix: Deliver via Socket Rooms
+    // Send Message with Read/Delivered Tick States
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isTargetOnline = Object.values(activeSockets).includes(data.targetName);
+
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             senderName: data.senderName,
@@ -112,14 +121,32 @@ io.on('connection', (socket) => {
             mediaType: data.mediaType,
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
+            status: isTargetOnline ? 'delivered' : 'sent', // 'sent', 'delivered', 'read'
             time: timeStr
         };
 
         chatHistory.push(msgObject);
 
-        // Target aur Sender dono ke room me message emmit karo
         io.to(data.targetName).emit('receive-private-message', msgObject);
         io.to(data.senderName).emit('receive-private-message', msgObject);
+    });
+
+    // Mark Messages as Read
+    socket.on('mark-messages-read', (data) => {
+        const { readerName, senderName } = data;
+        let updatedIds = [];
+
+        chatHistory.forEach(m => {
+            if (m.senderName === senderName && m.targetName === readerName && m.status !== 'read') {
+                m.status = 'read';
+                updatedIds.push(m.msgId);
+            }
+        });
+
+        if (updatedIds.length > 0) {
+            io.to(senderName).emit('messages-read-status-updated', { readerName, updatedIds });
+            io.to(readerName).emit('messages-read-status-updated', { readerName, updatedIds });
+        }
     });
 
     socket.on('delete-message-everyone', (data) => {
