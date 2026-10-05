@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum WhatsApp Web Complete</title>
+    <title>Quantum WhatsApp Web</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -21,6 +21,42 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
+        /* --- SPLASH SCREEN WITH ALIEN_0729👽 ANIMATION --- */
+        #splashScreen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #0b141a; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            animation: fadeOut 0.8s ease 2s forwards;
+        }
+
+        .alien-logo-badge {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1f2c34, #0b141a);
+            border: 3px solid var(--accent-green);
+            color: var(--accent-green);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.15rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 30px rgba(0, 168, 132, 0.6);
+            animation: pulseZoom 1.2s infinite alternate ease-in-out;
+            text-shadow: 0 0 10px rgba(0, 255, 180, 0.7);
+            user-select: none;
+        }
+
+        .splash-title { color: var(--accent-green); margin-top: 20px; font-weight: 700; font-size: 1.4rem; letter-spacing: 1px; }
+
+        @keyframes pulseZoom {
+            from { transform: scale(0.95); box-shadow: 0 0 15px rgba(0, 168, 132, 0.4); }
+            to { transform: scale(1.08); box-shadow: 0 0 35px rgba(0, 168, 132, 0.8); }
+        }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* Main Container */
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
         /* Sidebar UI */
@@ -57,7 +93,7 @@
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
         .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
 
-        /* Emoji Drawer Popup */
+        /* Emoji Drawer */
         #emojiBox { display: none; position: absolute; bottom: 68px; left: 10px; background: var(--panel-dark); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px; max-width: 300px; flex-wrap: wrap; gap: 10px; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         #emojiBox span { font-size: 1.5rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
         #emojiBox span:hover { transform: scale(1.2); }
@@ -72,7 +108,7 @@
         .delete-btn { position: absolute; top: 2px; right: 4px; font-size: 0.7rem; color: #ff5252; cursor: pointer; display: none; background: rgba(0,0,0,0.5); padding: 1px 4px; border-radius: 4px; }
         .msg:hover .delete-btn { display: block; }
 
-        /* Audio / Video Call Modal Screen */
+        /* Audio / Video Call Modal */
         #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
         .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 340px; }
         .call-video-box { width: 100%; height: 230px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
@@ -82,7 +118,7 @@
         .btn-accept { background: var(--accent-green); border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
         .btn-reject { background: #ff5252; border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
 
-        /* User Authentication Card Overlay */
+        /* Auth Screen */
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
         .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
@@ -100,7 +136,15 @@
 </head>
 <body>
 
-    <!-- Authentication Overlay Screen -->
+    <!-- Splash Screen with Alien_0729👽 Animated Logo -->
+    <div id="splashScreen">
+        <div class="alien-logo-badge">
+            Alien_0729👽
+        </div>
+        <div class="splash-title">Quantum Messenger</div>
+    </div>
+
+    <!-- Auth / Login Modal -->
     <div id="authOverlay">
         <div class="auth-card">
             <h2>Quantum Web</h2>
@@ -111,7 +155,7 @@
         </div>
     </div>
 
-    <!-- Call Overlay Screen (Voice & Video Calls) -->
+    <!-- Call Overlay Screen -->
     <div id="callModal">
         <div class="call-card">
             <h3 id="callStatusText">Calling...</h3>
@@ -129,7 +173,7 @@
         </div>
     </div>
 
-    <!-- Application Main Screen -->
+    <!-- App Container -->
     <div class="app-container" id="appContainer">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -156,7 +200,7 @@
             <div class="user-list" id="userListContainer"></div>
         </div>
 
-        <!-- Main Chat Area -->
+        <!-- Main Chat Window -->
         <div class="chat-main">
             <div class="chat-header">
                 <div class="target-profile">
@@ -168,7 +212,6 @@
                     </div>
                 </div>
                 
-                <!-- Voice & Video Calling Buttons -->
                 <div class="header-actions">
                     <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
@@ -181,16 +224,14 @@
 
             <div class="chat-body" id="chatWin"></div>
 
-            <!-- Emoji Drawer -->
             <div id="emojiBox">
                 <span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span>
-                <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️')">❤️</span>
+                <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️️')">❤️</span>
                 <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🔥')">🔥</span>
                 <span onclick="addEmoji('🎉')">🎉</span><span onclick="addEmoji('🙏')">🙏</span>
                 <span onclick="addEmoji('😎')">😎</span><span onclick="addEmoji('😭')">😭</span>
             </div>
 
-            <!-- Chat Input Area with Dynamic Send/Mic Button -->
             <div class="chat-input" id="chatInputArea">
                 <button class="btn-icon" onclick="toggleEmojiBox()">😊</button>
                 <button class="btn-icon" onclick="document.getElementById('fileInput').click()">📎</button>
@@ -198,10 +239,8 @@
                 
                 <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
                 
-                <!-- Voice Recording Mic Button -->
                 <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Record Voice Message">🎙</button>
 
-                <!-- Dynamic Send Button (Shown when text is typed) -->
                 <button class="btn-icon" id="sendBtn" style="color:var(--accent-green); display:none;" onclick="sendText()" title="Send Message">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                 </button>
@@ -217,7 +256,6 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
-        // WebRTC Config
         let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -363,7 +401,6 @@
             win.scrollTop = win.scrollHeight;
         }
 
-        /* Input Bar & Send Button Dynamics */
         function handleInputChange() {
             const txt = document.getElementById('msgInput').value.trim();
             const sendBtn = document.getElementById('sendBtn');
@@ -377,7 +414,6 @@
                 voiceBtn.style.display = 'flex';
             }
 
-            // Live Typing Status update
             if(selectedTargetUser) {
                 socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
                 clearTimeout(typingTimeout);
@@ -432,7 +468,6 @@
             }
         }
 
-        /* Audio Note Recording */
         async function toggleRecordAudio() {
             if(!selectedTargetUser) return alert('Select user first!');
             const btn = document.getElementById('voiceBtn');
@@ -477,7 +512,6 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
-        /* WebRTC Voice & Video Call Logic */
         async function startCall(videoMode) {
             if(!selectedTargetUser) return alert('Select user to call!');
             isVideoCall = videoMode;
