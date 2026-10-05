@@ -999,7 +999,6 @@
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
 
-            // कैमरा मिरर फिक्स: केवल फ्रंट कैमरे (user) पर 'scaleX(-1)', बैक कैमरे (environment) पर 'none'
             const isFrontCamera = currentFacingMode === 'user';
             const dynamicTransform = isFrontCamera ? 'scaleX(-1)' : 'none';
 
