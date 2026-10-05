@@ -83,6 +83,10 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
+    socket.on('request-user-list', () => {
+        updateUserList();
+    });
+
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
