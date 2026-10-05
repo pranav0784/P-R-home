@@ -9,20 +9,27 @@ const io = new Server(server);
 app.use(express.static(__dirname));
 
 const connectedUsers = {};
-const ADMIN_SECRET = "pranav123"; // <-- यहाँ अपना सीक्रेट एडमिन कोड सेट कर लो
+const MASTER_ADMIN_CODE = "pranav123"; // मुख्य मास्टर एडमिन पासवर्ड (तुम्हारा परमानेंट कोड)
+let currentRoomCode = "1234";          // डायनेमिक रूम कोड जिसे एडमिन बदल सकता है
 
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
+    // लॉगिन और कोड वेरिफिकेशन
     socket.on('login-attempt', (data) => {
-        const { username, adminCode } = data;
+        const { username, inputCode } = data;
         let isAdmin = false;
 
-        // अगर यूजर ने सही एडमिन कोड डाला है
-        if (adminCode && adminCode === ADMIN_SECRET) {
+        // अगर मास्टर एडमिन कोड डाला है तो एडमिन बन जाएगा
+        if (inputCode === MASTER_ADMIN_CODE) {
             isAdmin = true;
-        } else if (adminCode && adminCode !== ADMIN_SECRET) {
-            return socket.emit('login-failed', 'Incorrect Admin Code!');
+        } 
+        // अगर करंट एक्टिव रूम कोड डाला है तो नॉर्मल यूजर के रूप में अंदर आ जाएगा
+        else if (inputCode === currentRoomCode) {
+            isAdmin = false;
+        } 
+        else {
+            return socket.emit('login-failed', 'Incorrect Code! Please enter the correct admin or room code.');
         }
 
         connectedUsers[socket.id] = {
@@ -33,6 +40,16 @@ io.on('connection', (socket) => {
 
         socket.emit('login-success', { isAdmin });
         updateUserList();
+    });
+
+    // एडमिन द्वारा नया रूम कोड सेट करना
+    socket.on('set-room-code', (data) => {
+        if (connectedUsers[socket.id] && connectedUsers[socket.id].isAdmin) {
+            if (data.newCode) {
+                currentRoomCode = data.newCode;
+                console.log(`Room code updated to: ${currentRoomCode}`);
+            }
+        }
     });
 
     socket.on('send-private-message', (data) => {
