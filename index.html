@@ -120,11 +120,11 @@
         }
 
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; }
         #pipVideo {
             position: absolute; top: 20px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
-            z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: pointer; transform: scaleX(-1);
+            z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: pointer;
         }
 
         .call-top-bar {
@@ -214,7 +214,7 @@
         <div class="call-controls-bar" id="activeCallControls">
             <button class="call-btn-circle" onclick="switchCamera()" title="Switch Camera">🔄</button>
             <button class="call-btn-circle" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
-            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙️️</button>
+            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙</button>
             <button class="call-btn-circle btn-call-end" onclick="endCall()" title="End Call">📞</button>
         </div>
     </div>
@@ -289,6 +289,8 @@
         </div>
     </div>
 
+    <!-- Notification Audio Alert -->
+    <audio id="notifySound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
     <audio id="remoteAudio" autoplay style="display:none;"></audio>
 
     <script>
@@ -425,7 +427,6 @@
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
             renderFilteredHistory();
-            socket.emit('update-user-list-trigger');
         }
 
         socket.on('load-chat-history', (history) => {
@@ -435,11 +436,20 @@
 
         socket.on('receive-private-message', (msgObj) => {
             allHistory.push(msgObj);
+            
+            // Agar hum usi chat window par hain jahan message aaya ya bheja hai
             if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
                 renderFilteredHistory();
-            } else if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
+            } 
+            
+            // Agar message hamare liye hai aur humne woh chat open nahi ki hai
+            if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
                 unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
                 localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
+                
+                // Sound notification bajayein
+                const sound = document.getElementById('notifySound');
+                if(sound) sound.play().catch(e => console.log('Audio play blocked'));
             }
         });
 
@@ -571,12 +581,16 @@
             const txt = document.getElementById('msgInput').value.trim();
             if(!txt || !selectedTargetUser) return;
             
+            // Device ka local time nikalein taaki bilkul sahi time dikhe
+            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
             socket.emit('send-private-message', {
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: txt,
                 mediaType: 'text',
-                replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null
+                replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null,
+                clientTime: clientTime
             });
             
             document.getElementById('msgInput').value = '';
@@ -589,13 +603,16 @@
             if(input.files && input.files[0] && selectedTargetUser) {
                 const file = input.files[0];
                 const isVideo = file.type.startsWith('video/');
+                const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     socket.emit('send-private-message', {
                         senderName: myName,
                         targetName: selectedTargetUser,
                         mediaType: isVideo ? 'video' : 'image',
-                        mediaUrl: e.target.result
+                        mediaUrl: e.target.result,
+                        clientTime: clientTime
                     });
                 };
                 reader.readAsDataURL(file);
@@ -613,13 +630,15 @@
                     audioChunks = [];
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
+                        const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             socket.emit('send-private-message', {
                                 senderName: myName,
                                 targetName: selectedTargetUser,
                                 mediaType: 'audio',
-                                mediaUrl: e.target.result
+                                mediaUrl: e.target.result,
+                                clientTime: clientTime
                             });
                         };
                         reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
@@ -662,7 +681,8 @@
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: isVideoCall ? 'Outgoing Video Call' : 'Outgoing Voice Call',
-                mediaType: 'call_log'
+                mediaType: 'call_log',
+                clientTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
             });
 
             document.getElementById('callModal').style.display = 'flex';
@@ -671,8 +691,9 @@
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
+            // Sirf local camera/mic stream start karein, remote tab tak connect na karein jab tak call accept na ho
             localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            assignStreamViews();
+            document.getElementById('pipVideo').srcObject = localStream;
 
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
@@ -713,8 +734,7 @@
             document.getElementById('callStatusText').innerText = 'Connected';
 
             localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            assignStreamViews();
-
+            
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -807,7 +827,7 @@
             if (localStream) {
                 isMicMuted = !isMicMuted;
                 localStream.getAudioTracks()[0].enabled = !isMicMuted;
-                document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙️';
+                document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙';
             }
         }
 
