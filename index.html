@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Messenger</title>
+    <title>Quantum WhatsApp Web</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -21,7 +21,7 @@
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
-        /* Splash Screen */
+        /* Splash Screen with Alien_0729👽 Logo */
         #splashScreen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
@@ -79,6 +79,9 @@
 
         .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
 
+        /* Reply Banner Overlay */
+        #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
+
         /* Input Area & Dynamic Send Button */
         .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
@@ -90,25 +93,29 @@
         #emojiBox span:hover { transform: scale(1.2); }
 
         /* Chat Message Bubbles */
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; transition: background 0.2s; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
         .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
         .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; }
         .msg audio { max-width: 100%; margin-top: 5px; }
-        .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
+        
+        .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
+        .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+        .blue-ticks { color: #53bdeb; font-weight: bold; }
 
         /* Call Log Style */
-        .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+        .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
 
-        /* Delete Modal */
+        /* Delete & Action Modal */
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
-        .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 280px; text-align: center; }
-        .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
+        .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+        .btn-reply-action { background: var(--accent-green); color: #fff; }
         .btn-del-everyone { background: #ff5252; color: #fff; }
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
-        /* Audio / Video Call Modal */
+        /* Audio / Video Call Modal Screen */
         #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
         .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 340px; }
         .call-video-box { width: 100%; height: 230px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
@@ -153,12 +160,13 @@
         </div>
     </div>
 
-    <!-- Delete Modal -->
+    <!-- Action / Delete Modal -->
     <div id="deleteModal">
         <div class="delete-card">
-            <h4 style="margin-bottom:12px;">Delete message?</h4>
-            <button class="btn-del-me" onclick="execDeleteMe()">Delete for me</button>
-            <button class="btn-del-everyone" id="btnDelEveryone" onclick="execDeleteEveryone()">Delete for everyone</button>
+            <h4 style="margin-bottom:12px;">Message Options</h4>
+            <button class="btn-reply-action" onclick="setReplyMessage()">↩ Reply</button>
+            <button class="btn-del-me" onclick="execDeleteMe()">🗑 Delete for me</button>
+            <button class="btn-del-everyone" id="btnDelEveryone" onclick="execDeleteEveryone()">🗑 Delete for everyone</button>
             <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
         </div>
     </div>
@@ -228,6 +236,12 @@
 
             <div class="chat-body" id="chatWin"></div>
 
+            <!-- Reply Preview Banner -->
+            <div id="replyPreviewBar">
+                <span id="replyPreviewText">Replying to message...</span>
+                <button onclick="cancelReply()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">✕</button>
+            </div>
+
             <div id="emojiBox">
                 <span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span>
                 <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️')">❤️</span>
@@ -257,6 +271,7 @@
         let myName = '', selectedTargetUser = null, allHistory = [];
         let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
         let selectedMsgForDelete = null;
+        let activeReplyMsg = null;
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -372,7 +387,6 @@
             renderFilteredHistory();
         });
 
-        /* Delete Options Logic */
         function openDeleteModal(msgObj) {
             selectedMsgForDelete = msgObj;
             document.getElementById('deleteModal').style.display = 'flex';
@@ -382,6 +396,20 @@
         function closeDeleteModal() {
             selectedMsgForDelete = null;
             document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        function setReplyMessage() {
+            if(selectedMsgForDelete) {
+                activeReplyMsg = selectedMsgForDelete;
+                document.getElementById('replyPreviewBar').style.display = 'flex';
+                document.getElementById('replyPreviewText').innerText = `Replying to: ${selectedMsgForDelete.message || selectedMsgForDelete.mediaType}`;
+            }
+            closeDeleteModal();
+        }
+
+        function cancelReply() {
+            activeReplyMsg = null;
+            document.getElementById('replyPreviewBar').style.display = 'none';
         }
 
         function execDeleteMe() {
@@ -426,12 +454,17 @@
                 div.onclick = () => openDeleteModal(msg);
                 
                 let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
+                
+                if(msg.replyTo) {
+                    html += `<div class="reply-quote">${msg.replyTo}</div>`;
+                }
+
                 if(msg.mediaType === 'text') html += msg.message;
                 else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
                 else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
                 else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 
-                html += `<div class="time">${msg.time}</div>`;
+                html += `<div class="time-ticks"><span>${msg.time}</span> ${isMe ? '<span class="blue-ticks">✓✓</span>' : ''}</div>`;
                 div.innerHTML = html;
                 win.appendChild(div);
             });
@@ -481,10 +514,12 @@
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: txt,
-                mediaType: 'text'
+                mediaType: 'text',
+                replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null
             });
             
             document.getElementById('msgInput').value = '';
+            cancelReply();
             handleInputChange();
             socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
         }
@@ -550,12 +585,10 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
-        /* WebRTC Calls + Call History Logging */
         async function startCall(videoMode) {
             if(!selectedTargetUser) return alert('Select user to call!');
             isVideoCall = videoMode;
 
-            // Save Call History Log in Chat
             socket.emit('send-private-message', {
                 senderName: myName,
                 targetName: selectedTargetUser,
