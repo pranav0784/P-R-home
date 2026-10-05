@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB
+    maxHttpBufferSize: 1e8, // 100MB File Limit
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -27,6 +27,7 @@ function generateRandomCode() {
 
 io.on('connection', (socket) => {
 
+    // 1. User Authentication
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
@@ -41,7 +42,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'गलत पासकोड! कृपया सही पासवर्ड दर्ज करें।');
+                return socket.emit('login-failed', 'Invalid passcode! Please enter correct passcode.');
             }
         }
 
@@ -66,6 +67,7 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
+    // 2. Admin Passcode Controls
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -82,6 +84,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 3. Admin Kick Action
     socket.on('remove-user-by-admin', (data) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
@@ -90,13 +93,14 @@ io.on('connection', (socket) => {
 
             const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === userToKick);
             if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा रिमूव कर दिया गया है।');
+                io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the Admin.');
                 delete activeSockets[targetSocketId];
             }
             updateUserList();
         }
     });
 
+    // 4. Update Profile Picture
     socket.on('update-avatar', (data) => {
         if (registeredUsers[data.username]) {
             registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
@@ -104,7 +108,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. प्राइवेट मैसेज (टेक्स्ट, फोटो, वीडियो, ऑडियो, कॉल लॉग)
+    // 5. Send Private Message (Text, Image, Video, Audio, Call Log)
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -112,8 +116,9 @@ io.on('connection', (socket) => {
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
-            mediaType: data.mediaType, // text, image, video, audio, call_log
+            mediaType: data.mediaType,
             mediaUrl: data.mediaUrl || null,
+            replyTo: data.replyTo || null,
             time: timeStr
         };
 
@@ -126,12 +131,13 @@ io.on('connection', (socket) => {
         socket.emit('receive-private-message', msgObject);
     });
 
-    // 6. Delete for Everyone
+    // 6. Delete for Everyone Broadcast
     socket.on('delete-message-everyone', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
 
+    // 7. Typing Indicator
     socket.on('typing', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
@@ -139,7 +145,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // WebRTC Calls Signaling
+    // 8. WebRTC Call Signals
     socket.on('call-user', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
