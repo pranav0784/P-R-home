@@ -120,11 +120,11 @@
         }
 
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #pipVideo {
             position: absolute; top: 20px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
-            z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: pointer;
+            z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: pointer; transform: scaleX(-1);
         }
 
         .call-top-bar {
@@ -214,7 +214,7 @@
         <div class="call-controls-bar" id="activeCallControls">
             <button class="call-btn-circle" onclick="switchCamera()" title="Switch Camera">🔄</button>
             <button class="call-btn-circle" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
-            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙️</button>
+            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙️️</button>
             <button class="call-btn-circle btn-call-end" onclick="endCall()" title="End Call">📞</button>
         </div>
     </div>
@@ -435,9 +435,9 @@
 
         socket.on('receive-private-message', (msgObj) => {
             allHistory.push(msgObj);
-            if(selectedTargetUser === msgObj.senderName || msgObj.senderName === myName) {
+            if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
                 renderFilteredHistory();
-            } else if (msgObj.targetName === myName) {
+            } else if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
                 unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
                 localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
             }
