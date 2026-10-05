@@ -107,13 +107,14 @@ io.on('connection', (socket) => {
         }
     });
 
+    // नया/अपडेटेड प्राइवेट मैसेज और मीडिया हैंडलर नए HTML स्ट्रक्चर के अनुसार
     socket.on('send-private-message', (data) => {
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
-            mediaType: data.mediaType,
+            mediaType: data.mediaType || null,
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -121,7 +122,6 @@ io.on('connection', (socket) => {
 
         chatHistory.push(msgObject);
 
-        // Target aur Sender dono ko turant deliver karein bina refresh ke
         io.to(data.targetName).emit('receive-private-message', msgObject);
         io.to(data.senderName).emit('receive-private-message', msgObject);
     });
