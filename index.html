@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Messenger</title>
+    <title>Quantum Messenger Pro</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -25,7 +25,7 @@
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 9999;
-            animation: fadeOut 0.8s ease 2s forwards;
+            animation: fadeOut 0.6s ease 1.5s forwards;
         }
 
         .alien-logo-badge {
@@ -64,6 +64,8 @@
         .user-info { flex: 1; }
         .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); }
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
+        
+        .unread-badge { background: var(--accent-green); color: #000; border-radius: 50%; font-size: 0.75rem; font-weight: bold; min-width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; padding: 2px; }
         .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
 
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
@@ -95,7 +97,6 @@
         .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
         .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
         
-        /* Tick Custom Styling */
         .tick-icon { font-weight: bold; font-size: 0.75rem; }
         .tick-sent { color: #8696a0; }
         .tick-delivered { color: #8696a0; }
@@ -139,7 +140,7 @@
 
     <div id="splashScreen">
         <div class="alien-logo-badge">Alien_0729👽</div>
-        <div class="splash-title">Quantum Messenger</div>
+        <div class="splash-title">Quantum Messenger Pro</div>
     </div>
 
     <div id="authOverlay">
@@ -183,7 +184,7 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile-badge">
-                    <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()">
+                    <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()" title="Click to Change Profile Picture">
                     <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
                     <div>
                         <strong id="myUsernameText">User</strong>
@@ -252,11 +253,12 @@
     <audio id="remoteAudio" autoplay style="display:none;"></audio>
 
     <script>
-        const socket = io();
+        const socket = io({ reconnection: true, reconnectionDelay: 500 });
         let myName = '', selectedTargetUser = null, allHistory = [];
         let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
+        let cachedUserList = [];
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -264,23 +266,38 @@
         let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
+        function getCurrentDeviceTime() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
-            if(savedName) document.getElementById('inputName').value = savedName;
+            const savedCode = localStorage.getItem('quantum_passcode');
+            const savedAvatar = localStorage.getItem('quantum_avatar');
+
+            if(savedName && savedCode) {
+                document.getElementById('inputName').value = savedName;
+                document.getElementById('inputCode').value = savedCode;
+                if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
+                login(true);
+            }
         };
 
-        function login() {
+        function login(isAuto = false) {
             myName = document.getElementById('inputName').value.trim();
             const code = document.getElementById('inputCode').value.trim();
             const avatar = document.getElementById('inputAvatar').value.trim();
             
-            if(!myName) return alert('Username is required!');
+            if(!myName || !code) return isAuto ? null : alert('Username & Passcode are required!');
 
-            localStorage.setItem('quantum_username', myName);
             socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
         }
 
         socket.on('login-success', (data) => {
+            localStorage.setItem('quantum_username', data.username);
+            localStorage.setItem('quantum_passcode', document.getElementById('inputCode').value.trim());
+            if(data.avatarUrl) localStorage.setItem('quantum_avatar', data.avatarUrl);
+
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
             document.getElementById('myUsernameText').innerText = data.username;
@@ -290,7 +307,12 @@
             if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
         });
 
-        socket.on('login-failed', msg => alert(msg));
+        socket.on('login-failed', msg => {
+            localStorage.clear();
+            document.getElementById('authOverlay').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+            alert(msg);
+        });
 
         function generateCode() { socket.emit('generate-new-code'); }
         function setCustomCode() {
@@ -307,20 +329,33 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    document.getElementById('myAvatarImg').src = e.target.result;
-                    socket.emit('update-avatar', { username: myName, newAvatarUrl: e.target.result });
+                    const imgUrl = e.target.result;
+                    document.getElementById('myAvatarImg').src = imgUrl;
+                    localStorage.setItem('quantum_avatar', imgUrl);
+                    socket.emit('update-avatar', { username: myName, newAvatarUrl: imgUrl });
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
         socket.on('update-user-list', (users) => {
+            cachedUserList = users;
+            renderUserList();
+        });
+
+        function renderUserList() {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
             const amIAdmin = document.getElementById('myRoleBadge').innerText.includes('Admin');
 
-            users.forEach(u => {
+            cachedUserList.forEach(u => {
                 if(u.username !== myName) {
+                    const unreadCount = allHistory.filter(m => 
+                        m.senderName === u.username && 
+                        m.targetName === myName && 
+                        m.status !== 'read'
+                    ).length;
+
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
                     const statusText = u.isOnline ? 'Online' : (u.lastSeen || 'Offline');
@@ -331,20 +366,24 @@
                             <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
                             <span>${statusText}</span>
                         </div>
-                        ${u.isOnline ? '<div class="online-dot"></div>' : ''}
+                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : (u.isOnline ? '<div class="online-dot"></div>' : '')}
                         ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
                     `;
                     div.onclick = () => selectTargetUser(u);
                     container.appendChild(div);
                 }
             });
-        });
+        }
 
         function removeUser(targetUsername) {
             if(confirm(`Remove ${targetUsername}?`)) socket.emit('remove-user-by-admin', { targetUsername });
         }
 
-        socket.on('kicked-by-admin', (msg) => { alert(msg); location.reload(); });
+        socket.on('kicked-by-admin', (msg) => {
+            localStorage.clear();
+            alert(msg);
+            location.reload();
+        });
 
         function selectTargetUser(userObj) {
             selectedTargetUser = userObj.username;
@@ -353,14 +392,15 @@
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
             document.body.classList.add('mobile-chat-open');
             
-            // Mark unread messages as read
             socket.emit('mark-messages-read', { readerName: myName, senderName: selectedTargetUser });
             renderFilteredHistory();
+            renderUserList();
         }
 
         socket.on('load-chat-history', (history) => {
             allHistory = history;
             if(selectedTargetUser) renderFilteredHistory();
+            renderUserList();
         });
 
         socket.on('receive-private-message', (msgObj) => {
@@ -371,6 +411,7 @@
                 }
                 renderFilteredHistory();
             }
+            renderUserList();
         });
 
         socket.on('messages-read-status-updated', (data) => {
@@ -380,11 +421,13 @@
                 }
             });
             renderFilteredHistory();
+            renderUserList();
         });
 
         socket.on('message-deleted-everyone', (data) => {
             allHistory = allHistory.filter(m => m.msgId !== data.msgId);
             renderFilteredHistory();
+            renderUserList();
         });
 
         function openDeleteModal(msgObj) {
@@ -464,7 +507,6 @@
                 else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
                 else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 
-                // Dynamic Ticks Rendering
                 let tickHtml = '';
                 if(isMe) {
                     if (msg.status === 'read') {
@@ -527,6 +569,7 @@
                 targetName: selectedTargetUser,
                 message: txt,
                 mediaType: 'text',
+                clientTime: getCurrentDeviceTime(),
                 replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null
             });
             
@@ -546,6 +589,7 @@
                         senderName: myName,
                         targetName: selectedTargetUser,
                         mediaType: isVideo ? 'video' : 'image',
+                        clientTime: getCurrentDeviceTime(),
                         mediaUrl: e.target.result
                     });
                 };
@@ -570,6 +614,7 @@
                                 senderName: myName,
                                 targetName: selectedTargetUser,
                                 mediaType: 'audio',
+                                clientTime: getCurrentDeviceTime(),
                                 mediaUrl: e.target.result
                             });
                         };
@@ -605,6 +650,7 @@
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: isVideoCall ? 'Outgoing Video Call' : 'Outgoing Voice Call',
+                clientTime: getCurrentDeviceTime(),
                 mediaType: 'call_log'
             });
 
