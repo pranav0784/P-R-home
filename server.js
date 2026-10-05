@@ -30,6 +30,15 @@ function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+function getUserSocketId(username) {
+    for (let socketId in activeSockets) {
+        if (activeSockets[socketId] === username) {
+            return socketId;
+        }
+    }
+    return null;
+}
+
 io.on('connection', (socket) => {
 
     socket.on('login-attempt', (data) => {
@@ -107,7 +116,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // नया/अपडेटेड प्राइवेट मैसेज और मीडिया हैंडलर नए HTML स्ट्रक्चर के अनुसार
     socket.on('send-private-message', (data) => {
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -133,6 +141,29 @@ io.on('connection', (socket) => {
 
     socket.on('typing', (data) => {
         io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
+    });
+
+    // Whiteboard Real-Time Sync Handlers
+    socket.on('wb-draw-data', (data) => {
+        const targetSocketId = getUserSocketId(data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('wb-draw-receive', {
+                senderName: activeSockets[socket.id],
+                x0: data.x0, y0: data.y0,
+                x1: data.x1, y1: data.y1,
+                color: data.color,
+                size: data.size
+            });
+        }
+    });
+
+    socket.on('wb-clear-data', (data) => {
+        const targetSocketId = getUserSocketId(data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('wb-clear-receive', {
+                senderName: activeSockets[socket.id]
+            });
+        }
     });
 
     socket.on('call-user', (data) => {
