@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8 // 100MB payload limit for high-res images and audio
+    maxHttpBufferSize: 1e8 // 100MB payload limit for media
 });
 
 app.use(express.static(__dirname));
@@ -18,16 +18,12 @@ let chatHistory = [];       // Global Array for Chat History Retention
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829"; // Default 4-Digit Passcode
 
-// Default Custom Logo (ImgBB Direct URL for your uploaded emblem)
-let currentAppLogo = "https://i.ibb.co/3k8xYmP/custom-logo.jpg"; 
-
 // Helper: 4-Digit Random Code Generator
 function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 io.on('connection', (socket) => {
-    socket.emit('update-logo', { logoUrl: currentAppLogo });
 
     // 1. User Authentication
     socket.on('login-attempt', (data) => {
@@ -37,7 +33,7 @@ io.on('connection', (socket) => {
         const isExistingUser = registeredUsers[username] ? true : false;
 
         if (isExistingUser) {
-            // Existing registered user directly logs in without passcode
+            // Existing registered user directly logs in
             isAdmin = registeredUsers[username].isAdmin;
         } else {
             // Verify passcode only for new users
@@ -71,7 +67,7 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
-    // 2. Admin Action: Generate Random Dynamic Passcode
+    // 2. Admin Action: Generate Random Passcode
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -80,7 +76,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. Admin Action: Set Custom Dynamic Passcode
+    // 3. Admin Action: Set Custom Passcode
     socket.on('set-custom-code', (data) => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -91,7 +87,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. Admin Action: Kick / Remove User Feature
+    // 4. Admin Action: Kick User
     socket.on('remove-user-by-admin', (data) => {
         const requestingUser = activeSockets[socket.id];
         
@@ -143,7 +139,7 @@ io.on('connection', (socket) => {
         socket.emit('receive-private-message', msgObject);
     });
 
-    // 7. Delete Message (Delete For Everyone)
+    // 7. Delete Message
     socket.on('delete-message', (data) => {
         const { msgId } = data;
         chatHistory = chatHistory.filter(m => m.msgId !== msgId);
