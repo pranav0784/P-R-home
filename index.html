@@ -1,282 +1,408 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum WhatsApp - Secure Room</title>
+    <title>Quantum Messenger Ultra</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
-            --wa-bg: #0b141a;
-            --wa-panel: #111b21;
-            --wa-header: #202c33;
-            --wa-green: #00a884;
-            --wa-bubble-sent: #005c4b;
-            --wa-bubble-recv: #202c33;
+            --bg-dark: #0b141a;
+            --panel-dark: #111b21;
+            --header-dark: #202c33;
+            --accent-green: #00a884;
+            --bubble-sent: #005c4b;
+            --bubble-recv: #202c33;
             --text-primary: #e9edef;
             --text-secondary: #8696a0;
+            --card-border: #222d34;
         }
 
-        * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, -apple-system, sans-serif; }
-        html, body { height: 100%; width: 100%; background: var(--wa-bg); color: var(--text-primary); overflow: hidden; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
-        /* लॉगिन ओवरले */
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--wa-bg); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--wa-panel); padding: 25px; border-radius: 12px; width: 90%; max-width: 340px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
-        .auth-card h2 { color: var(--wa-green); margin-bottom: 20px; }
-        .auth-card input { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; margin-bottom: 12px; }
-        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-green); color: #fff; font-weight: bold; cursor: pointer; }
+        /* Splash Screen Animation */
+        #splashScreen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #0b141a; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            animation: fadeOut 0.8s ease 2s forwards;
+        }
+        .splash-logo {
+            width: 100px; height: 100px; border-radius: 50%;
+            animation: pulseZoom 1.2s infinite alternate ease-in-out;
+            box-shadow: 0 0 25px rgba(0, 168, 132, 0.4);
+        }
+        .splash-title { color: var(--accent-green); margin-top: 18px; font-weight: 700; font-size: 1.4rem; letter-spacing: 1px; }
 
+        @keyframes pulseZoom {
+            from { transform: scale(0.95); }
+            to { transform: scale(1.08); }
+        }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+        /* Auth / Login Overlay */
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-card {
+            background: var(--panel-dark); padding: 30px; border-radius: 20px; width: 90%; max-width: 380px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center; border: 1px solid var(--card-border);
+            animation: slideUp 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+        .auth-card h2 { color: var(--accent-green); margin-bottom: 22px; font-weight: 700; font-size: 1.5rem; }
+        .auth-card input { width: 100%; padding: 13px; border-radius: 10px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none; margin-bottom: 14px; font-size: 0.95rem; }
+        .auth-card button { width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; font-size: 1.05rem; transition: transform 0.2s; }
+        .auth-card button:active { transform: scale(0.97); }
+
+        /* App Layout */
         .app-container { width: 100vw; height: 100vh; display: none; flex-direction: row; overflow: hidden; }
 
-        .sidebar { width: 300px; background: var(--wa-panel); border-right: 1px solid #222d34; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        
-        .admin-panel-box { padding: 10px; background: #182229; border-bottom: 1px solid #222d34; display: none; flex-shrink: 0; }
-        .admin-panel-box input { width: 100%; padding: 8px; border-radius: 6px; border: none; background: #2a3942; color: #fff; margin-bottom: 6px; outline: none; }
-        .admin-panel-box button { width: 100%; padding: 8px; background: var(--wa-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
+        .sidebar { width: 350px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
+        .user-profile-badge { display: flex; align-items: center; gap: 12px; }
+        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
+
+        /* Admin Code Control Box */
+        .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
+        .admin-box button { width: 100%; padding: 10px; background: var(--accent-green); border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .code-display { font-size: 0.9rem; color: #ffeb3b; text-align: center; margin-bottom: 8px; font-weight: bold; background: #111b21; padding: 8px; border-radius: 6px; }
 
         .user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .user-item { padding: 14px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: background 0.2s; position: relative; }
         .user-item:hover, .user-item.active { background: #202c33; }
-        .online-dot { width: 10px; height: 10px; background: var(--wa-green); border-radius: 50%; }
+        .user-item img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
+        .user-info { flex: 1; }
+        .user-info strong { display: block; font-size: 1rem; color: var(--text-primary); }
+        .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
+        .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green); }
 
-        /* मुख्य चैट सेक्शन - लेआउट फिक्स */
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; height: 100%; min-width: 0; }
-        .chat-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .call-btns { display: flex; gap: 15px; font-size: 1.3rem; cursor: pointer; }
+        /* Kick Button Style */
+        .kick-btn { background: #ff5252; color: #fff; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: transform 0.1s; }
+        .kick-btn:active { transform: scale(0.9); }
 
-        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; word-break: break-word; position: relative; }
-        .msg.sent { align-self: flex-end; background: var(--wa-bubble-sent); }
-        .msg.recv { align-self: flex-start; background: var(--wa-bubble-recv); }
-        .msg img { max-width: 100%; border-radius: 6px; margin-top: 5px; }
+        /* Chat Window Layout */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); position: relative; height: 100%; min-width: 0; }
+        .chat-header { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
+        .target-profile { display: flex; align-items: center; gap: 12px; }
+        .target-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
+
+        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
+        
+        /* Animated WhatsApp Chat Bubbles */
+        .msg {
+            max-width: 70%; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem; word-break: break-word; position: relative;
+            animation: slideUp 0.3s ease-out forwards;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .msg.sent { align-self: flex-end; background: var(--bubble-sent); border-bottom-right-radius: 2px; }
+        .msg.recv { align-self: flex-start; background: var(--bubble-recv); border-bottom-left-radius: 2px; }
+        .msg img { max-width: 100%; border-radius: 8px; margin-top: 6px; }
+        .msg audio { max-width: 240px; margin-top: 6px; }
         .time { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; }
 
-        /* चैट इनपुट बार फिक्स */
-        .chat-input { height: 62px; background: var(--wa-header); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .input-box { flex: 1; padding: 10px 14px; border-radius: 8px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        /* Delete Button on Hover */
+        .delete-btn { position: absolute; top: 4px; right: 6px; font-size: 0.75rem; color: #ff5252; cursor: pointer; display: none; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; }
+        .msg:hover .delete-btn { display: block; }
 
-        .call-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:100; padding: 15px; }
-        .video-box { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 600px; }
-        video { width: 100%; max-width: 260px; height: 190px; background: #222; border-radius: 12px; object-fit: cover; }
+        /* Input Controls */
+        .chat-input { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+        .input-box { flex: 1; padding: 12px 18px; border-radius: 22px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.4rem; cursor: pointer; transition: transform 0.1s; }
+        .btn-icon:active { transform: scale(0.9); }
 
-        /* मोबाइल स्क्रीन रिस्पॉन्सिव */
         @media (max-width: 768px) {
-            .app-container { flex-direction: column; }
-            .sidebar { width: 100%; height: 35vh; border-right: none; border-bottom: 1px solid #222d34; }
-            .chat-main { height: 65vh; }
-            video { max-width: 140px; height: 170px; }
+            .sidebar { width: 100%; }
+            .chat-main { display: none; width: 100%; }
+            .mobile-chat-open .sidebar { display: none; }
+            .mobile-chat-open .chat-main { display: flex; }
         }
     </style>
 </head>
 <body>
 
-    <!-- लॉगिन स्क्रीन -->
+    <!-- Splash Screen -->
+    <div id="splashScreen">
+        <img id="splashAppLogo" src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" class="splash-logo">
+        <div class="splash-title">Quantum Messenger</div>
+    </div>
+
+    <!-- Auth / Login Screen -->
     <div id="authOverlay">
         <div class="auth-card">
-            <h2>Quantum WhatsApp</h2>
-            <input type="text" id="inputName" placeholder="Your Name">
-            <input type="password" id="inputAdminOrRoomCode" placeholder="Enter Admin Code or Room Code">
-            <button onclick="login()">Join Chat</button>
+            <h2>Quantum Login</h2>
+            <input type="text" id="inputName" placeholder="आपका नाम (Username)">
+            <input type="password" id="inputCode" placeholder="पासकोड (केवल नए यूज़र के लिए)">
+            <input type="text" id="inputAvatar" placeholder="Profile Logo URL (Optional)">
+            <button onclick="login()">Enter Chat</button>
         </div>
     </div>
 
-    <!-- मुख्य ऐप -->
+    <!-- Main Messenger Layout -->
     <div class="app-container" id="appContainer">
         <div class="sidebar">
             <div class="sidebar-header">
-                <strong style="color:var(--wa-green)" id="userRoleTitle">Quantum WhatsApp</strong>
-            </div>
-            
-            <div class="admin-panel-box" id="adminPanelBox">
-                <div style="font-size:0.75rem; color:var(--wa-green); margin-bottom:4px;">ADMIN CONTROLS:</div>
-                <input type="text" id="newRoomCodeInput" placeholder="Set New Entry Code">
-                <button onclick="updateRoomCode()">Update Entry Code</button>
+                <div class="user-profile-badge">
+                    <img id="myAvatarImg" src="" class="my-avatar" title="Your Avatar">
+                    <div>
+                        <strong id="myUsernameText" style="font-size:1rem;">You</strong>
+                        <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Pro User</div>
+                    </div>
+                </div>
             </div>
 
-            <div style="padding:8px 16px; font-size:0.85rem; color:var(--text-secondary);">ONLINE USERS:</div>
-            <div class="user-list" id="usersContainer"></div>
+            <!-- Admin Passcode Control Box -->
+            <div class="admin-box" id="adminBox">
+                <div class="code-display" id="codeDisplay">Current Code: ----</div>
+                <button onclick="generateCode()">🎲 Generate New Dynamic Code</button>
+            </div>
+
+            <div style="padding:12px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
+            <div class="user-list" id="userListContainer"></div>
         </div>
 
         <div class="chat-main">
             <div class="chat-header">
-                <div>
-                    <strong id="targetUserName">Select a user to chat</strong>
-                    <div id="targetStatus" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
-                </div>
-                <div class="call-btns" id="callBtns" style="display:none;">
-                    <span onclick="startCall('audio')">📞</span>
-                    <span onclick="startCall('video')">📹</span>
+                <div class="target-profile">
+                    <button class="btn-icon" onclick="closeMobileChat()" style="display:none;" id="backBtn">←</button>
+                    <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar">
+                    <div>
+                        <strong id="targetNameText">चैट करने के लिए किसी यूज़र को चुनें</strong>
+                        <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
+                    </div>
                 </div>
             </div>
 
             <div class="chat-body" id="chatWin"></div>
 
-            <!-- चैट इनपुट बार -->
-            <div class="chat-input" id="chatInputBar">
-                <button class="btn-icon" onclick="addEmoji('😊')">😊</button>
+            <div class="chat-input">
                 <button class="btn-icon" onclick="document.getElementById('imgInput').click()">📎</button>
                 <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="sendPhoto(this)">
-                <input type="text" id="msgText" class="input-box" placeholder="Type a message..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
-                <button class="btn-icon" style="color:var(--wa-green);" onclick="sendText()">➔</button>
+                
+                <input type="text" id="msgInput" class="input-box" placeholder="संदेश टाइप करें..." oninput="handleTyping()" onkeydown="if(event.key==='Enter') sendText()">
+                
+                <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()">🎙</button>
+                <button class="btn-icon" style="color:var(--accent-green);" onclick="sendText()">➔</button>
             </div>
         </div>
     </div>
 
-    <!-- कॉल स्क्रीन -->
-    <div class="call-screen" id="callScreen">
-        <h3 id="callTitle" style="margin-bottom:15px; color:#fff;">Calling...</h3>
-        <div class="video-box">
-            <video id="localVideo" autoplay muted></video>
-            <video id="remoteVideo" autoplay></video>
-        </div>
-        <button onclick="endCall()" style="padding:10px 20px; background:red; color:#fff; border:none; border-radius:20px; font-weight:bold; cursor:pointer;">End Call</button>
-    </div>
-
     <script>
         const socket = io();
-        let myName = '', isAdmin = false, selectedTargetSocketId = null, localStream = null, typingTimeout = null;
+        let myName = '', selectedTargetUser = null, allHistory = [];
+        let mediaRecorder = null, audioChunks = [], isRecording = false;
+
+        // Auto-fill Saved Username
+        window.onload = () => {
+            const savedName = localStorage.getItem('quantum_username');
+            if(savedName) document.getElementById('inputName').value = savedName;
+        };
 
         function login() {
             myName = document.getElementById('inputName').value.trim();
-            const code = document.getElementById('inputAdminOrRoomCode').value.trim();
-            if(!myName) return alert('Please enter your name!');
+            const code = document.getElementById('inputCode').value.trim();
+            const avatar = document.getElementById('inputAvatar').value.trim();
+            
+            if(!myName) return alert('कृपया अपना नाम दर्ज करें');
 
-            socket.emit('login-attempt', { username: myName, inputCode: code });
+            localStorage.setItem('quantum_username', myName);
+            socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
         }
 
         socket.on('login-success', (data) => {
-            isAdmin = data.isAdmin;
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('userRoleTitle').innerText = isAdmin ? 'Admin 👑' : 'WhatsApp';
+            document.getElementById('myUsernameText').innerText = data.username;
+            document.getElementById('myAvatarImg').src = data.avatarUrl;
+            document.getElementById('myRoleBadge').innerText = data.isAdmin ? 'Master Admin 👑' : 'Pro User';
             
-            if(isAdmin) {
-                document.getElementById('adminPanelBox').style.display = 'block';
+            if(data.isAdmin) {
+                document.getElementById('adminBox').style.display = 'block';
+                document.getElementById('codeDisplay').innerText = `Current Code: ${data.currentCode}`;
             }
         });
 
-        socket.on('login-failed', (msg) => {
-            alert(msg);
+        socket.on('login-failed', msg => alert(msg));
+
+        function generateCode() { socket.emit('generate-new-code'); }
+
+        socket.on('code-updated', (data) => {
+            const disp = document.getElementById('codeDisplay');
+            if(disp) disp.innerText = `Current Code: ${data.newCode}`;
         });
 
-        function updateRoomCode() {
-            const newCode = document.getElementById('newRoomCodeInput').value.trim();
-            if(!newCode) return alert('Enter a valid code!');
-            socket.emit('set-room-code', { newCode });
-            alert('Room entry code updated successfully!');
-            document.getElementById('newRoomCodeInput').value = '';
-        }
-
+        // 🟢 Dynamic User List with Admin Kick Feature
         socket.on('update-user-list', (users) => {
-            const container = document.getElementById('usersContainer');
+            const container = document.getElementById('userListContainer');
             container.innerHTML = '';
+            
+            const amIAdmin = document.getElementById('myRoleBadge').innerText.includes('Admin');
+
             users.forEach(u => {
-                if(u.socketId !== socket.id) {
+                if(u.username !== myName) {
                     const div = document.createElement('div');
-                    div.className = `user-item ${selectedTargetSocketId === u.socketId ? 'active' : ''}`;
-                    div.innerHTML = `<span>${u.username} ${u.isAdmin ? '👑' : ''}</span><div class="online-dot"></div>`;
-                    div.onclick = () => selectUser(u.socketId, u.username);
+                    div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
+                    div.innerHTML = `
+                        <img src="${u.avatarUrl}">
+                        <div class="user-info">
+                            <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
+                            <span>${u.isOnline ? 'Online' : 'Offline'}</span>
+                        </div>
+                        ${u.isOnline ? '<div class="online-dot"></div>' : ''}
+                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" onclick="event.stopPropagation(); removeUser('${u.username}')">❌ Kick</button>` : ''}
+                    `;
+                    div.onclick = () => selectTargetUser(u);
                     container.appendChild(div);
                 }
             });
         });
 
-        function selectUser(targetId, targetName) {
-            selectedTargetSocketId = targetId;
-            document.getElementById('targetUserName').innerText = targetName;
-            document.getElementById('targetStatus').innerText = 'Online';
-            document.getElementById('targetStatus').style.color = 'var(--wa-green)';
-            document.getElementById('callBtns').style.display = 'flex';
+        // Admin Function to Kick User
+        function removeUser(targetUsername) {
+            if(confirm(`क्या आप वाकई ${targetUsername} को ऐप से हटाना चाहते हैं?`)) {
+                socket.emit('remove-user-by-admin', { targetUsername: targetUsername });
+            }
+        }
+
+        // Listener for Kicked User
+        socket.on('kicked-by-admin', (reason) => {
+            alert(reason);
+            localStorage.removeItem('quantum_username');
+            location.reload();
+        });
+
+        function selectTargetUser(userObj) {
+            selectedTargetUser = userObj.username;
+            document.getElementById('targetNameText').innerText = userObj.username;
+            document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
+            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : 'Offline';
+            document.body.classList.add('mobile-chat-open');
+            renderFilteredHistory();
+        }
+
+        // WhatsApp-Style Persistent Chat Load
+        socket.on('load-chat-history', (history) => {
+            allHistory = history;
+            if(selectedTargetUser) renderFilteredHistory();
+        });
+
+        socket.on('receive-private-message', (msgObj) => {
+            allHistory.push(msgObj);
+            if(selectedTargetUser === msgObj.senderName || msgObj.senderName === myName) {
+                renderFilteredHistory();
+            }
+        });
+
+        socket.on('message-deleted', (data) => {
+            allHistory = allHistory.filter(m => m.msgId !== data.msgId);
+            renderFilteredHistory();
+        });
+
+        function deleteMsg(msgId) {
+            if(confirm('क्या आप इस मैसेज को सभी के लिए डिलीट (Delete for Everyone) करना चाहते हैं?')) {
+                socket.emit('delete-message', { msgId });
+            }
+        }
+
+        function renderFilteredHistory() {
+            const win = document.getElementById('chatWin');
+            win.innerHTML = '';
+            
+            const conversation = allHistory.filter(m => 
+                (m.senderName === myName && m.targetName === selectedTargetUser) ||
+                (m.senderName === selectedTargetUser && m.targetName === myName)
+            );
+
+            conversation.forEach(msg => {
+                const isMe = msg.senderName === myName;
+                const div = document.createElement('div');
+                div.className = `msg ${isMe ? 'sent' : 'recv'}`;
+                
+                let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
+                if(msg.mediaType === 'text') html += msg.message;
+                else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
+                else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
+                
+                html += `<div class="time">${msg.time}</div>`;
+                
+                if(isMe) {
+                    html += `<span class="delete-btn" onclick="deleteMsg('${msg.msgId}')">🗑 Delete</span>`;
+                }
+                
+                div.innerHTML = html;
+                win.appendChild(div);
+            });
+
+            win.scrollTop = win.scrollHeight;
         }
 
         function sendText() {
-            const txt = document.getElementById('msgText').value.trim();
-            if(!txt || !selectedTargetSocketId) return alert('Select a user first!');
+            const txt = document.getElementById('msgInput').value.trim();
+            if(!txt || !selectedTargetUser) return;
             
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             socket.emit('send-private-message', {
-                targetSocketId: selectedTargetSocketId,
-                message: txt,
                 senderName: myName,
+                targetName: selectedTargetUser,
+                message: txt,
                 mediaType: 'text'
             });
-
-            renderMsg({ senderName: 'You', message: txt, mediaType: 'text', time: timeStr }, true);
-            document.getElementById('msgText').value = '';
+            document.getElementById('msgInput').value = '';
         }
 
         function sendPhoto(input) {
-            if (input.files && input.files[0] && selectedTargetSocketId) {
+            if(input.files && input.files[0] && selectedTargetUser) {
                 const reader = new FileReader();
-                reader.onload = function (e) {
-                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                reader.onload = function(e) {
                     socket.emit('send-private-message', {
-                        targetSocketId: selectedTargetSocketId,
                         senderName: myName,
+                        targetName: selectedTargetUser,
                         mediaType: 'image',
                         mediaUrl: e.target.result
                     });
-                    renderMsg({ senderName: 'You', mediaType: 'image', mediaUrl: e.target.result, time: timeStr }, true);
-                }
+                };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
-        function handleTyping() {
-            if(!selectedTargetSocketId) return;
-            socket.emit('typing', { targetSocketId: selectedTargetSocketId, isTyping: true });
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing', { targetSocketId: selectedTargetSocketId, isTyping: false });
-            }, 1500);
-        }
-
-        socket.on('user-typing', (data) => {
-            if(data.fromSocketId === selectedTargetSocketId) {
-                const statusDiv = document.getElementById('targetStatus');
-                statusDiv.innerText = data.isTyping ? 'typing...' : 'Online';
+        async function toggleRecordAudio() {
+            if(!selectedTargetUser) return alert('पहले किसी यूज़र को चुनें!');
+            const btn = document.getElementById('voiceBtn');
+            
+            if(!isRecording) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        socket.emit('send-private-message', {
+                            senderName: myName,
+                            targetName: selectedTargetUser,
+                            mediaType: 'audio',
+                            mediaUrl: e.target.result
+                        });
+                    };
+                    reader.readAsDataURL(audioBlob);
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                btn.style.color = 'red';
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.style.color = 'var(--text-secondary)';
             }
-        });
-
-        socket.on('receive-private-message', (data) => renderMsg(data, false));
-
-        function renderMsg(data, isMe) {
-            const win = document.getElementById('chatWin');
-            const div = document.createElement('div');
-            div.className = `msg ${isMe ? 'sent' : 'recv'}`;
-            
-            let contentHtml = `<strong>${isMe ? 'You' : data.senderName}:</strong><br>`;
-            if(data.mediaType === 'text') contentHtml += data.message;
-            else if(data.mediaType === 'image') contentHtml += `<img src="${data.mediaUrl}">`;
-            
-            contentHtml += `<div class="time">${data.time || ''}</div>`;
-            div.innerHTML = contentHtml;
-            
-            win.appendChild(div);
-            win.scrollTop = win.scrollHeight;
         }
 
-        function addEmoji(e) { document.getElementById('msgText').value += e; }
-
-        async function startCall(type) {
-            if(!selectedTargetSocketId) return;
-            document.getElementById('callScreen').style.display = 'flex';
-            document.getElementById('callTitle').innerText = `Calling...`;
-            localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
-            document.getElementById('localVideo').srcObject = localStream;
-            socket.emit('initiate-call', { targetSocketId: selectedTargetSocketId, callType: type, callerName: myName });
+        function handleTyping() {
+            if(!selectedTargetUser) return;
+            socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
         }
 
-        function endCall() {
-            document.getElementById('callScreen').style.display = 'none';
-            if(localStream) localStream.getTracks().forEach(track => track.stop());
-            if(selectedTargetSocketId) socket.emit('end-call', { targetSocketId: selectedTargetSocketId });
-        }
-
-        socket.on('call-ended', () => { alert('Call Ended'); endCall(); });
+        function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
     </script>
 </body>
 </html>
