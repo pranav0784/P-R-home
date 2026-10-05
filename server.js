@@ -1,25 +1,69 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 100MB
-    pingInterval: 10000,
-    pingTimeout: 5000,
+    pingInterval: 5000,
+    pingTimeout: 10000,
     cors: { origin: "*" }
 });
 
 app.use(express.static(__dirname));
 
-const registeredUsers = {}; // { username: { avatarUrl, isAdmin, lastSeen } }
+// --- MongoDB Database Schemas ---
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/quantum_db";
+
+let isDbConnected = false;
+mongoose.connect(MONGO_URI)
+    .then(() => {
+        console.log("✅ MongoDB Database Connected Successfully!");
+        isDbConnected = true;
+    })
+    .catch(err => {
+        console.log("⚠️ MongoDB Not Configured. Running with High-Speed Memory Storage Engine.");
+    });
+
+const UserSchema = new mongoose.Schema({
+    username: { type: String, unique: true, required: true },
+    avatarUrl: String,
+    isAdmin: { type: Boolean, default: false },
+    lastSeen: String,
+    isKicked: { type: Boolean, default: false }
+});
+
+const MessageSchema = new mongoose.Schema({
+    msgId: String,
+    senderName: String,
+    targetName: String,
+    message: String,
+    mediaType: String,
+    mediaUrl: String,
+    replyTo: String,
+    status: { type: String, default: 'sent' },
+    time: String,
+    timestamp: { type: Date, default: Date.now }
+});
+
+const UserModel = mongoose.model('User', UserSchema);
+const MessageModel = mongoose.model('Message', MessageSchema);
+
+// In-Memory Fast Cache
 const activeSockets = {};   // { socketId: username }
-let chatHistory = [];       
+const memoryUsers = {};
+let memoryChatHistory = [];
 
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829";
+
+// Render Self-Ping Mechanism (Anti-Sleep)
+setInterval(() => {
+    http.get(`http://localhost:${process.env.PORT || 3000}`, () => {}).on('error', () => {});
+}, 240000); // 4 minutes
 
 function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
@@ -27,14 +71,18 @@ function generateRandomCode() {
 
 io.on('connection', (socket) => {
 
-    socket.on('login-attempt', (data) => {
+    socket.on('login-attempt', async (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
 
-        const isExistingUser = !!registeredUsers[username];
+        let dbUser = isDbConnected ? await UserModel.findOne({ username }) : memoryUsers[username];
 
-        if (isExistingUser) {
-            isAdmin = registeredUsers[username].isAdmin;
+        if (dbUser && dbUser.isKicked) {
+            return socket.emit('login-failed', 'You were removed by Admin. Please re-authenticate.');
+        }
+
+        if (dbUser) {
+            isAdmin = dbUser.isAdmin;
         } else {
             if (inputCode === MASTER_ADMIN_CODE) {
                 isAdmin = true;
@@ -45,13 +93,14 @@ io.on('connection', (socket) => {
             }
         }
 
-        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`;
+        const userAvatar = avatarUrl || (dbUser ? dbUser.avatarUrl : `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`);
 
-        if (!registeredUsers[username]) {
-            registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
+        const userData = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online', isKicked: false };
+
+        if (isDbConnected) {
+            await UserModel.findOneAndUpdate({ username }, userData, { upsert: true, new: true });
         } else {
-            if (avatarUrl) registeredUsers[username].avatarUrl = avatarUrl;
-            registeredUsers[username].lastSeen = 'Online';
+            memoryUsers[username] = userData;
         }
 
         activeSockets[socket.id] = username;
@@ -60,23 +109,29 @@ io.on('connection', (socket) => {
         socket.emit('login-success', {
             username: username,
             isAdmin: isAdmin,
-            avatarUrl: registeredUsers[username].avatarUrl
+            avatarUrl: userAvatar
         });
 
-        // Update undelivered messages to 'delivered' when user comes online
-        chatHistory.forEach(m => {
-            if (m.targetName === username && m.status === 'sent') {
-                m.status = 'delivered';
-            }
-        });
+        // Update undelivered messages to 'delivered'
+        if (isDbConnected) {
+            await MessageModel.updateMany({ targetName: username, status: 'sent' }, { status: 'delivered' });
+            const history = await MessageModel.find({
+                $or: [{ senderName: username }, { targetName: username }]
+            }).sort({ timestamp: 1 }).limit(200);
+            socket.emit('load-chat-history', history);
+        } else {
+            memoryChatHistory.forEach(m => {
+                if (m.targetName === username && m.status === 'sent') m.status = 'delivered';
+            });
+            socket.emit('load-chat-history', memoryChatHistory);
+        }
 
-        socket.emit('load-chat-history', chatHistory);
         updateUserList();
     });
 
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]?.isAdmin) {
+        if (username) {
             currentDynamicCode = generateRandomCode();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
@@ -84,33 +139,37 @@ io.on('connection', (socket) => {
 
     socket.on('set-custom-code', (data) => {
         const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]?.isAdmin && data.newCode) {
+        if (username && data.newCode) {
             currentDynamicCode = data.newCode.trim();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
-    socket.on('remove-user-by-admin', (data) => {
+    socket.on('remove-user-by-admin', async (data) => {
         const requestingUser = activeSockets[socket.id];
-        if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
+        if (requestingUser) {
             const userToKick = data.targetUsername;
-            delete registeredUsers[userToKick];
+            if (isDbConnected) {
+                await UserModel.findOneAndUpdate({ username: userToKick }, { isKicked: true });
+            } else if (memoryUsers[userToKick]) {
+                memoryUsers[userToKick].isKicked = true;
+            }
 
             io.to(userToKick).emit('kicked-by-admin', 'You have been removed by Admin.');
             updateUserList();
         }
     });
 
-    socket.on('update-avatar', (data) => {
-        if (registeredUsers[data.username]) {
-            registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
-            updateUserList();
+    socket.on('update-avatar', async (data) => {
+        if (isDbConnected) {
+            await UserModel.findOneAndUpdate({ username: data.username }, { avatarUrl: data.newAvatarUrl });
+        } else if (memoryUsers[data.username]) {
+            memoryUsers[data.username].avatarUrl = data.newAvatarUrl;
         }
+        updateUserList();
     });
 
-    // Send Message with Read/Delivered Tick States
-    socket.on('send-private-message', (data) => {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    socket.on('send-private-message', async (data) => {
         const isTargetOnline = Object.values(activeSockets).includes(data.targetName);
 
         const msgObject = {
@@ -121,27 +180,36 @@ io.on('connection', (socket) => {
             mediaType: data.mediaType,
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
-            status: isTargetOnline ? 'delivered' : 'sent', // 'sent', 'delivered', 'read'
-            time: timeStr
+            status: isTargetOnline ? 'delivered' : 'sent',
+            time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        chatHistory.push(msgObject);
+        if (isDbConnected) {
+            await MessageModel.create(msgObject);
+        } else {
+            memoryChatHistory.push(msgObject);
+        }
 
         io.to(data.targetName).emit('receive-private-message', msgObject);
         io.to(data.senderName).emit('receive-private-message', msgObject);
     });
 
-    // Mark Messages as Read
-    socket.on('mark-messages-read', (data) => {
+    socket.on('mark-messages-read', async (data) => {
         const { readerName, senderName } = data;
         let updatedIds = [];
 
-        chatHistory.forEach(m => {
-            if (m.senderName === senderName && m.targetName === readerName && m.status !== 'read') {
-                m.status = 'read';
-                updatedIds.push(m.msgId);
-            }
-        });
+        if (isDbConnected) {
+            const unreadMsgs = await MessageModel.find({ senderName, targetName: readerName, status: { $ne: 'read' } });
+            updatedIds = unreadMsgs.map(m => m.msgId);
+            await MessageModel.updateMany({ senderName, targetName: readerName }, { status: 'read' });
+        } else {
+            memoryChatHistory.forEach(m => {
+                if (m.senderName === senderName && m.targetName === readerName && m.status !== 'read') {
+                    m.status = 'read';
+                    updatedIds.push(m.msgId);
+                }
+            });
+        }
 
         if (updatedIds.length > 0) {
             io.to(senderName).emit('messages-read-status-updated', { readerName, updatedIds });
@@ -149,8 +217,12 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('delete-message-everyone', (data) => {
-        chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
+    socket.on('delete-message-everyone', async (data) => {
+        if (isDbConnected) {
+            await MessageModel.deleteOne({ msgId: data.msgId });
+        } else {
+            memoryChatHistory = memoryChatHistory.filter(m => m.msgId !== data.msgId);
+        }
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
 
@@ -174,26 +246,39 @@ io.on('connection', (socket) => {
         io.to(data.targetName).emit('call-ended');
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            if (registeredUsers[username]) {
-                registeredUsers[username].lastSeen = `Last seen today at ${timeStr}`;
+            const lastSeenStr = `Last seen at ${timeStr}`;
+
+            if (isDbConnected) {
+                await UserModel.findOneAndUpdate({ username }, { lastSeen: lastSeenStr });
+            } else if (memoryUsers[username]) {
+                memoryUsers[username].lastSeen = lastSeenStr;
             }
+
             delete activeSockets[socket.id];
             updateUserList();
         }
     });
 });
 
-function updateUserList() {
-    const list = Object.values(registeredUsers).map(user => ({
+async function updateUserList() {
+    let rawList = [];
+    if (isDbConnected) {
+        rawList = await UserModel.find({ isKicked: false }).lean();
+    } else {
+        rawList = Object.values(memoryUsers).filter(u => !u.isKicked);
+    }
+
+    const list = rawList.map(user => ({
         ...user,
         isOnline: Object.values(activeSockets).includes(user.username)
     }));
+
     io.emit('update-user-list', list);
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Quantum Production Server Running on Port ${PORT}`));
