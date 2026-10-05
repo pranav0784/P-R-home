@@ -5,15 +5,14 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8 // 100MB payload limit for images/voice
+    maxHttpBufferSize: 1e8 // 100MB File/Media Transfer Limit
 });
 
 app.use(express.static(__dirname));
 
-// इन-मेमोरी डेटा स्टोरेज
 const registeredUsers = {}; // { username: { avatarUrl, isAdmin } }
 const activeSockets = {};   // { socketId: username }
-let chatHistory = [];       // सभी मैसेजेस यहाँ सेव रहेंगे (ऑफलाइन मैसेज सपोर्ट)
+let chatHistory = [];       // Global chat history for persistent messages
 
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829";
@@ -24,7 +23,7 @@ function generateRandomCode() {
 
 io.on('connection', (socket) => {
 
-    // 1. लॉगिन और ऑथेंटिकेशन
+    // 1. Authenticate / Login
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
@@ -39,7 +38,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'नया यूजर! कृपया सही पासकोड दर्ज करें।');
+                return socket.emit('login-failed', 'गलत पासकोड! कृपया सही कोड दर्ज करें।');
             }
         }
 
@@ -59,12 +58,11 @@ io.on('connection', (socket) => {
             avatarUrl: registeredUsers[username].avatarUrl
         });
 
-        // लॉगिन होते ही पूरा चैट इतिहास यूजर को भेज दिया जाएगा
         socket.emit('load-chat-history', chatHistory);
         updateUserList();
     });
 
-    // 2. पासकोड बदलना (Admin)
+    // 2. Admin Passcode Controls
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -75,44 +73,37 @@ io.on('connection', (socket) => {
 
     socket.on('set-custom-code', (data) => {
         const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]?.isAdmin) {
-            if (data.newCode && data.newCode.trim() !== '') {
-                currentDynamicCode = data.newCode.trim();
-                socket.emit('code-updated', { newCode: currentDynamicCode });
-            }
+        if (username && registeredUsers[username]?.isAdmin && data.newCode) {
+            currentDynamicCode = data.newCode.trim();
+            socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
-    // 3. यूजर को किक करना (Admin)
+    // 3. Remove/Kick User (Admin)
     socket.on('remove-user-by-admin', (data) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
+            delete registeredUsers[userToKick];
 
-            if (registeredUsers[userToKick]) {
-                delete registeredUsers[userToKick];
-
-                const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === userToKick);
-                if (targetSocketId) {
-                    io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
-                    delete activeSockets[targetSocketId];
-                }
-
-                updateUserList();
+            const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === userToKick);
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
+                delete activeSockets[targetSocketId];
             }
-        }
-    });
-
-    // 4. प्रोफाइल अवतार अपडेट करना
-    socket.on('update-avatar', (data) => {
-        const { username, newAvatarUrl } = data;
-        if (registeredUsers[username]) {
-            registeredUsers[username].avatarUrl = newAvatarUrl;
             updateUserList();
         }
     });
 
-    // 5. मैसेज भेजना (ऑनलाइन और ऑफलाइन दोनों स्थिति में सेव होगा)
+    // 4. Avatar Update
+    socket.on('update-avatar', (data) => {
+        if (registeredUsers[data.username]) {
+            registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
+            updateUserList();
+        }
+    });
+
+    // 5. Send Private Message (Text, Image, Video, Audio)
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -120,36 +111,60 @@ io.on('connection', (socket) => {
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message,
-            mediaType: data.mediaType,
+            mediaType: data.mediaType, // text, image, video, audio
             mediaUrl: data.mediaUrl,
             time: timeStr
         };
 
-        // हमेशा ग्लोबल चैट हिस्ट्री में मैसेज सेव करें
         chatHistory.push(msgObject);
 
-        // अगर सामने वाला यूजर ऑनलाइन है, तो उसे रियल-टाइम में मैसेज डिलीवर करें
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
             io.to(targetSocketId).emit('receive-private-message', msgObject);
         }
-        
-        // खुद की स्क्रीन पर मैसेज अपडेट करें
         socket.emit('receive-private-message', msgObject);
     });
 
-    // 6. मैसेज डिलीट करना
+    // 6. Delete Message
     socket.on('delete-message', (data) => {
-        const { msgId } = data;
-        chatHistory = chatHistory.filter(m => m.msgId !== msgId);
-        io.emit('message-deleted', { msgId });
+        chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
+        io.emit('message-deleted', { msgId: data.msgId });
     });
 
-    // 7. टाइपिंग इंडिकेटर
+    // 7. Live Typing Indicator
     socket.on('typing', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
-            io.to(targetSocketId).emit('user-typing', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
+            io.to(targetSocketId).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
+        }
+    });
+
+    // 8. Audio & Video Call WebRTC Signaling
+    socket.on('call-user', (data) => {
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
+        }
+    });
+
+    socket.on('answer-call', (data) => {
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('call-accepted', { answer: data.answer });
+        }
+    });
+
+    socket.on('ice-candidate', (data) => {
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('ice-candidate', { candidate: data.candidate });
+        }
+    });
+
+    socket.on('end-call', (data) => {
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('call-ended');
         }
     });
 
@@ -168,4 +183,4 @@ function updateUserList() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+server.listen(PORT, () => console.log(`Quantum Server active on port ${PORT}`));
