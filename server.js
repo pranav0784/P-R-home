@@ -1,24 +1,22 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB media file transfer limit
-    pingInterval: 10000,    // Render timeout avoid karne ke liye WebSocket keep-alive
+    maxHttpBufferSize: 1e8, // 100MB
+    pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
 });
 
 app.use(express.static(__dirname));
 
-// Persistent State Storage
 const registeredUsers = {}; // { username: { avatarUrl, isAdmin, lastSeen } }
 const activeSockets = {};   // { socketId: username }
-let chatHistory = [];       // Global chat history across sessions
+let chatHistory = [];       
 
 const MASTER_ADMIN_CODE = "pranav123";
 let currentDynamicCode = "4829";
@@ -29,7 +27,6 @@ function generateRandomCode() {
 
 io.on('connection', (socket) => {
 
-    // 1. User Authentication & Login
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
@@ -65,12 +62,10 @@ io.on('connection', (socket) => {
             avatarUrl: registeredUsers[username].avatarUrl
         });
 
-        // Online aate hi poori chat history load karein (Office/Offline offline message delivery support)
         socket.emit('load-chat-history', chatHistory);
         updateUserList();
     });
 
-    // 2. Admin Actions
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -102,7 +97,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. Avatar Update
     socket.on('update-avatar', (data) => {
         if (registeredUsers[data.username]) {
             registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
@@ -110,7 +104,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. Message Delivery (Online / Offline Message Store)
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -118,12 +111,11 @@ io.on('connection', (socket) => {
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
-            mediaType: data.mediaType, // 'text', 'image', 'video', 'audio'
+            mediaType: data.mediaType,
             mediaUrl: data.mediaUrl || null,
             time: timeStr
         };
 
-        // Persistent Server Array me save karein taaki user offline se online aae tab bhi message dikhe
         chatHistory.push(msgObject);
 
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
@@ -133,21 +125,18 @@ io.on('connection', (socket) => {
         socket.emit('receive-private-message', msgObject);
     });
 
-    // 5. Delete Message
     socket.on('delete-message', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
         io.emit('message-deleted', { msgId: data.msgId });
     });
 
-    // 6. Live Typing Status Indicator
     socket.on('typing', (data) => {
-        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
+        const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[socket.id] === data.targetName);
         if (targetSocketId) {
             io.to(targetSocketId).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
         }
     });
 
-    // 7. Voice & Video Calls (WebRTC Signaling)
     socket.on('call-user', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
@@ -176,7 +165,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 8. Disconnect and Last Seen Handling
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
