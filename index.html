@@ -16,11 +16,13 @@
             --text-primary: #e9edef;
             --text-secondary: #8696a0;
             --card-border: #222d34;
+            --search-bg: #111b21;
         }
 
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
 
+        /* UNTOUCHED SPLASH SCREEN & AUTH OVERLAY */
         #splashScreen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: #0b141a; display: flex; flex-direction: column;
@@ -47,26 +49,38 @@
         }
         @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
 
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
+        .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
+        .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
+        .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
+
+        /* UPGRADED INSIDE APP LAYOUT */
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
         .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
         .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
+        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; transition: transform 0.2s; }
+        .my-avatar:hover { transform: scale(1.05); }
+
+        /* Search Bar Inside Sidebar */
+        .search-box-container { padding: 8px 12px; background: var(--panel-dark); border-bottom: 1px solid var(--card-border); }
+        .search-input { width: 100%; padding: 8px 14px; border-radius: 8px; border: none; background: #202c33; color: #fff; outline: none; font-size: 0.88rem; }
 
         .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
         .admin-box button { width: 100%; padding: 8px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
 
         .user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
+        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; transition: background 0.15s; }
         .user-item:hover, .user-item.active { background: #202c33; }
-        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+        .user-item img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; }
         .user-info { flex: 1; }
         .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); }
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
         
         .unread-badge { background: var(--accent-green); color: #000; border-radius: 50%; font-size: 0.75rem; font-weight: bold; min-width: 20px; height: 20px; display: flex; justify-content: center; align-items: center; padding: 2px; }
-        .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
+        .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green); }
 
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
@@ -76,7 +90,8 @@
         .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
         .header-actions { display: flex; gap: 16px; align-items: center; }
 
-        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
+        /* Enhanced Chat Body with WhatsApp Pattern */
+        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1.2px, transparent 1.2px); background-size: 22px 22px; }
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
@@ -88,13 +103,13 @@
         #emojiBox span { font-size: 1.5rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
         #emojiBox span:hover { transform: scale(1.2); }
 
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
-        .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
-        .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
-        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; }
+        .msg { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .msg.sent { align-self: flex-end; background: var(--bubble-sent); border-top-right-radius: 2px; }
+        .msg.recv { align-self: flex-start; background: var(--bubble-recv); border-top-left-radius: 2px; }
+        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; cursor: pointer; }
         .msg audio { max-width: 100%; margin-top: 5px; }
         
-        .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
+        .reply-quote { background: rgba(0,0,0,0.25); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
         .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
         
         .tick-icon { font-weight: bold; font-size: 0.75rem; }
@@ -104,6 +119,11 @@
 
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
 
+        /* Media Viewer Lightbox Modal */
+        #mediaModal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 9500; justify-content: center; align-items: center; }
+        #mediaModalContent { max-width: 90%; max-height: 85%; border-radius: 12px; box-shadow: 0 0 30px rgba(0,0,0,0.9); }
+        .close-media-btn { position: absolute; top: 20px; right: 25px; color: #fff; font-size: 2rem; cursor: pointer; font-weight: bold; }
+
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
         .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
         .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
@@ -112,20 +132,14 @@
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
-        /* --- Full Screen WhatsApp-Style Video Overlay --- */
+        /* Full Screen WhatsApp-Style Video Overlay */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
 
-        .video-full-container {
-            position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1;
-        }
-
-        #mainVideo {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-
+        .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; }
         #pipVideo {
             position: absolute; top: 20px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
@@ -156,7 +170,6 @@
 
         @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
 
-        /* Slide Up Animation for Incoming Calls */
         .incoming-slide-card {
             position: absolute; bottom: 30px; z-index: 30; width: 90%; max-width: 360px;
             background: var(--panel-dark); border: 1px solid var(--card-border);
@@ -166,12 +179,6 @@
         }
 
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
-        .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
-        .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
-        .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; display: flex; }
@@ -199,9 +206,16 @@
         </div>
     </div>
 
+    <!-- Media Full Screen Viewer -->
+    <div id="mediaModal">
+        <span class="close-media-btn" onclick="closeMediaModal()">✕</span>
+        <div id="mediaContainer"></div>
+    </div>
+
     <div id="deleteModal">
         <div class="delete-card">
             <h4 style="margin-bottom:12px;">Message Options</h4>
+            <button class="btn-reply-action" onclick="copyMsgText()">📋 Copy Text</button>
             <button class="btn-reply-action" onclick="setReplyMessage()">↩ Reply</button>
             <button class="btn-del-me" onclick="execDeleteMe()">🗑 Delete for me</button>
             <button class="btn-del-everyone" id="btnDelEveryone" onclick="execDeleteEveryone()">🗑 Delete for everyone</button>
@@ -209,7 +223,6 @@
         </div>
     </div>
 
-    <!-- WhatsApp Style Full-Screen Call Modal -->
     <div id="callModal">
         <div class="call-top-bar">
             <h2 id="callTargetName" style="color:#fff; font-size:1.3rem;">User</h2>
@@ -221,7 +234,6 @@
             <video id="pipVideo" autoplay playsinline muted onclick="swapVideoViews()"></video>
         </div>
 
-        <!-- Incoming Call Slide UI -->
         <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
             <h3 id="incomingCallerName" style="color:#fff;">Caller</h3>
             <p id="incomingCallType" style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Incoming Video Call</p>
@@ -231,7 +243,6 @@
             </div>
         </div>
 
-        <!-- Call Active Control Buttons -->
         <div class="call-controls-bar" id="activeCallControls">
             <button class="call-btn-circle" id="btnSwitchCam" onclick="switchCamera()" title="Switch Camera">🔄</button>
             <button class="call-btn-circle" id="btnScreenShare" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
@@ -253,6 +264,11 @@
                 </div>
             </div>
 
+            <!-- New Search Bar -->
+            <div class="search-box-container">
+                <input type="text" id="searchUserContainer" class="search-input" placeholder="Search chats..." oninput="filterUserList()">
+            </div>
+
             <div class="admin-box" id="adminBox">
                 <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                     <input type="text" id="customCodeInput" placeholder="New Dynamic Code" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none;">
@@ -261,7 +277,10 @@
                 <button onclick="generateCode()">🎲 Generate Random Code</button>
             </div>
 
-            <div style="padding:10px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
+            <div style="padding:10px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+                <span>CHATS</span>
+                <span style="cursor:pointer;" onclick="alert('Status feature coming in next update!')">⭕ Status</span>
+            </div>
             <div class="user-list" id="userListContainer"></div>
         </div>
 
@@ -295,6 +314,7 @@
                 <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🔥')">🔥</span>
                 <span onclick="addEmoji('🎉')">🎉</span><span onclick="addEmoji('🙏')">🙏</span>
                 <span onclick="addEmoji('😎')">😎</span><span onclick="addEmoji('😭')">😭</span>
+                <span onclick="addEmoji('🙌')">🙌</span><span onclick="addEmoji('✨')">✨</span>
             </div>
 
             <div class="chat-input" id="chatInputArea">
@@ -320,12 +340,11 @@
         let activeReplyMsg = null;
         let cachedUserList = [];
 
-        let mediaRecorder = null, audioChunks = [], isRecording = false;
+        let mediaRecorder = null, audioChunks = [], isRecording = false, recordInterval = null, recSeconds = 0;
         let typingTimeout = null;
 
-        // WebRTC & Call Logic
         let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
-        let currentFacingMode = 'user'; // 'user' for front, 'environment' for back
+        let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
 
         const rtcConfig = { 
@@ -351,6 +370,14 @@
                 login(true);
             }
         };
+
+        socket.on('connect', () => {
+            if(myName) {
+                const code = localStorage.getItem('quantum_passcode') || '';
+                const avatar = localStorage.getItem('quantum_avatar') || '';
+                socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
+            }
+        });
 
         function login(isAuto = false) {
             myName = document.getElementById('inputName').value.trim();
@@ -410,15 +437,27 @@
         socket.on('update-user-list', (users) => {
             cachedUserList = users;
             renderUserList();
+
+            if (selectedTargetUser) {
+                const activeTarget = cachedUserList.find(u => u.username === selectedTargetUser);
+                if (activeTarget) {
+                    document.getElementById('targetStatusText').innerText = activeTarget.isOnline ? 'Online' : (activeTarget.lastSeen || 'Offline');
+                }
+            }
         });
+
+        function filterUserList() {
+            renderUserList();
+        }
 
         function renderUserList() {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
             const amIAdmin = document.getElementById('myRoleBadge').innerText.includes('Admin');
+            const query = document.getElementById('searchUserContainer').value.toLowerCase().trim();
 
             cachedUserList.forEach(u => {
-                if(u.username !== myName) {
+                if(u.username !== myName && u.username.toLowerCase().includes(query)) {
                     const unreadCount = allHistory.filter(m => 
                         m.senderName === u.username && 
                         m.targetName === myName && 
@@ -510,6 +549,25 @@
             document.getElementById('deleteModal').style.display = 'none';
         }
 
+        function copyMsgText() {
+            if (selectedMsgForDelete && selectedMsgForDelete.message) {
+                navigator.clipboard.writeText(selectedMsgForDelete.message);
+                alert('Message Copied!');
+            }
+            closeDeleteModal();
+        }
+
+        function openMediaModal(url, isVideo = false) {
+            const container = document.getElementById('mediaContainer');
+            container.innerHTML = isVideo ? `<video src="${url}" controls autoplay style="max-width:90vw; max-height:85vh; border-radius:12px;"></video>` : `<img src="${url}" style="max-width:90vw; max-height:85vh; border-radius:12px;">`;
+            document.getElementById('mediaModal').style.display = 'flex';
+        }
+
+        function closeMediaModal() {
+            document.getElementById('mediaModal').style.display = 'none';
+            document.getElementById('mediaContainer').innerHTML = '';
+        }
+
         function setReplyMessage() {
             if(selectedMsgForDelete) {
                 activeReplyMsg = selectedMsgForDelete;
@@ -572,8 +630,8 @@
                 }
 
                 if(msg.mediaType === 'text') html += msg.message;
-                else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
-                else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
+                else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}" onclick="event.stopPropagation(); openMediaModal('${msg.mediaUrl}', false)">`;
+                else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls onclick="event.stopPropagation(); openMediaModal('${msg.mediaUrl}', true)"></video>`;
                 else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 
                 let tickHtml = '';
@@ -675,8 +733,14 @@
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
+                    recSeconds = 0;
+                    
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
+                        clearInterval(recordInterval);
+                        btn.innerHTML = '🎙';
+                        btn.style.color = 'var(--text-secondary)';
+
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             socket.emit('send-private-message', {
@@ -692,13 +756,18 @@
                     mediaRecorder.start();
                     isRecording = true;
                     btn.style.color = 'red';
+
+                    recordInterval = setInterval(() => {
+                        recSeconds++;
+                        btn.innerText = `🔴 ${recSeconds}s`;
+                    }, 1000);
+
                 } catch(err) {
                     alert('Microphone Access Denied!');
                 }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                btn.style.color = 'var(--text-secondary)';
             }
         }
 
@@ -711,7 +780,6 @@
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
-        // --- FULL-SCREEN HIGH-QUALITY WEBRTC CALL SYSTEM ---
         async function getHDMediaStream(video, facing) {
             const constraints = {
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
