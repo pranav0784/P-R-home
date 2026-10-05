@@ -108,7 +108,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send-private-message', (data) => {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             senderName: data.senderName,
@@ -154,7 +154,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
             if (registeredUsers[username]) {
                 registeredUsers[username].lastSeen = `Last seen today at ${timeStr}`;
             }
