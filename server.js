@@ -5,32 +5,31 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8 // 100MB payload limit for media
+    maxHttpBufferSize: 1e8 // 100MB payload limit for images/voice
 });
 
 app.use(express.static(__dirname));
 
-// Persistent In-Memory Storage
+// इन-मेमोरी डेटा स्टोरेज
 const registeredUsers = {}; // { username: { avatarUrl, isAdmin } }
 const activeSockets = {};   // { socketId: username }
-let chatHistory = [];       // Global Array for Chat History Retention
+let chatHistory = [];       // सभी मैसेजेस यहाँ सेव रहेंगे (ऑफलाइन मैसेज सपोर्ट)
 
 const MASTER_ADMIN_CODE = "pranav123";
-let currentDynamicCode = "4829"; // Default Passcode
+let currentDynamicCode = "4829";
 
-// Helper: 4-Digit Random Code Generator
 function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 io.on('connection', (socket) => {
 
-    // 1. User Authentication
+    // 1. लॉगिन और ऑथेंटिकेशन
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         let isAdmin = false;
 
-        const isExistingUser = registeredUsers[username] ? true : false;
+        const isExistingUser = !!registeredUsers[username];
 
         if (isExistingUser) {
             isAdmin = registeredUsers[username].isAdmin;
@@ -40,7 +39,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'New user! Invalid passcode. Please enter a valid passcode.');
+                return socket.emit('login-failed', 'नया यूजर! कृपया सही पासकोड दर्ज करें।');
             }
         }
 
@@ -60,11 +59,12 @@ io.on('connection', (socket) => {
             avatarUrl: registeredUsers[username].avatarUrl
         });
 
+        // लॉगिन होते ही पूरा चैट इतिहास यूजर को भेज दिया जाएगा
         socket.emit('load-chat-history', chatHistory);
         updateUserList();
     });
 
-    // 2. Admin Action: Generate Random Passcode
+    // 2. पासकोड बदलना (Admin)
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -73,7 +73,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. Admin Action: Set Custom Passcode
     socket.on('set-custom-code', (data) => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -84,10 +83,9 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 4. Admin Action: Kick User
+    // 3. यूजर को किक करना (Admin)
     socket.on('remove-user-by-admin', (data) => {
         const requestingUser = activeSockets[socket.id];
-        
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
 
@@ -96,7 +94,7 @@ io.on('connection', (socket) => {
 
                 const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === userToKick);
                 if (targetSocketId) {
-                    io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the Admin.');
+                    io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
                     delete activeSockets[targetSocketId];
                 }
 
@@ -105,7 +103,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. Update Profile Logo / Avatar
+    // 4. प्रोफाइल अवतार अपडेट करना
     socket.on('update-avatar', (data) => {
         const { username, newAvatarUrl } = data;
         if (registeredUsers[username]) {
@@ -114,7 +112,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 6. Send Private Message
+    // 5. मैसेज भेजना (ऑनलाइन और ऑफलाइन दोनों स्थिति में सेव होगा)
     socket.on('send-private-message', (data) => {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const msgObject = {
@@ -127,23 +125,27 @@ io.on('connection', (socket) => {
             time: timeStr
         };
 
+        // हमेशा ग्लोबल चैट हिस्ट्री में मैसेज सेव करें
         chatHistory.push(msgObject);
 
+        // अगर सामने वाला यूजर ऑनलाइन है, तो उसे रियल-टाइम में मैसेज डिलीवर करें
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
             io.to(targetSocketId).emit('receive-private-message', msgObject);
         }
+        
+        // खुद की स्क्रीन पर मैसेज अपडेट करें
         socket.emit('receive-private-message', msgObject);
     });
 
-    // 7. Delete Message
+    // 6. मैसेज डिलीट करना
     socket.on('delete-message', (data) => {
         const { msgId } = data;
         chatHistory = chatHistory.filter(m => m.msgId !== msgId);
         io.emit('message-deleted', { msgId });
     });
 
-    // 8. Typing Status
+    // 7. टाइपिंग इंडिकेटर
     socket.on('typing', (data) => {
         const targetSocketId = Object.keys(activeSockets).find(sId => activeSockets[sId] === data.targetName);
         if (targetSocketId) {
@@ -166,4 +168,4 @@ function updateUserList() {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Quantum Engine active on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
