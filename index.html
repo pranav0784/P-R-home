@@ -3,123 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Messenger</title>
+    <title>WhatsApp</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
-            --bg-dark: #0b141a;
-            --panel-dark: #111b21;
-            --header-dark: #202c33;
-            --accent-green: #00a884;
-            --bubble-sent: #005c4b;
-            --bubble-recv: #202c33;
-            --text-primary: #e9edef;
-            --text-secondary: #8696a0;
-            --card-border: #222d34;
+            --wa-bg: #0b141a;
+            --wa-panel: #111b21;
+            --wa-header: #202c33;
+            --wa-accent: #00a884;
+            --wa-sent: #005c4b;
+            --wa-recv: #202c33;
+            --wa-text: #e9edef;
+            --wa-subtext: #8696a0;
+            --wa-border: #222d34;
+            --wa-input-bg: #2a3942;
         }
 
         * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
+        html, body { height: 100%; width: 100%; background: var(--wa-bg); color: var(--wa-text); overflow: hidden; }
 
-        #splashScreen {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #0b141a; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            animation: fadeOut 0.8s ease 2s forwards;
-        }
-
-        .alien-logo-badge {
-            width: 150px; height: 150px; border-radius: 50%;
-            background: linear-gradient(135deg, #1f2c34, #0b141a);
-            border: 3px solid var(--accent-green); color: var(--accent-green);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.15rem; font-weight: bold; letter-spacing: 0.5px;
-            box-shadow: 0 0 30px rgba(0, 168, 132, 0.6);
-            animation: pulseZoom 1.2s infinite alternate ease-in-out;
-            text-shadow: 0 0 10px rgba(0, 255, 180, 0.7); user-select: none;
-        }
-
-        .splash-title { color: var(--accent-green); margin-top: 20px; font-weight: 700; font-size: 1.4rem; letter-spacing: 1px; }
-
-        @keyframes pulseZoom {
-            from { transform: scale(0.95); box-shadow: 0 0 15px rgba(0, 168, 132, 0.4); }
-            to { transform: scale(1.08); box-shadow: 0 0 35px rgba(0, 168, 132, 0.8); }
-        }
-        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+        /* Login Screen */
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--wa-bg); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .auth-card { background: var(--wa-panel); padding: 35px 30px; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; border: 1px solid var(--wa-border); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .auth-card h2 { color: var(--wa-accent); margin-bottom: 22px; font-weight: 500; font-size: 1.8rem; }
+        .auth-card input { width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--wa-border); background: var(--wa-input-bg); color: #fff; margin-bottom: 15px; outline: none; font-size: 0.95rem; }
+        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--wa-accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+        .auth-card button:hover { background: #019575; }
 
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
-        .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
-        .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
+        /* Sidebar / Chat List */
+        .sidebar { width: 400px; background: var(--wa-panel); border-right: 1px solid var(--wa-border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .wa-profile-area { display: flex; align-items: center; gap: 12px; }
+        .my-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+        .header-icons { display: flex; gap: 20px; color: var(--wa-subtext); font-size: 1.25rem; align-items: center; }
 
-        .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
-        .admin-box button { width: 100%; padding: 8px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        /* Meta AI & Search Bar */
+        .wa-search-container { padding: 8px 12px; background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
+        .wa-search-box { width: 100%; background: var(--wa-header); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 12px; color: var(--wa-subtext); }
+        .wa-search-box input { background: none; border: none; outline: none; color: var(--wa-text); width: 100%; font-size: 0.9rem; }
 
-        .user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
+        /* Filter Pills (All, Unread, Favourites, Groups) */
+        .filter-pills { padding: 8px 12px; display: flex; gap: 8px; background: var(--wa-panel); overflow-x: auto; white-space: nowrap; }
+        .filter-pill { background: var(--wa-header); color: var(--wa-subtext); padding: 6px 12px; border-radius: 16px; font-size: 0.82rem; cursor: pointer; font-weight: 500; }
+        .filter-pill.active { background: rgba(0, 168, 132, 0.15); color: var(--wa-accent); }
+
+        .user-list { flex: 1; overflow-y: auto; background: var(--wa-panel); }
+        .user-item { padding: 10px 16px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); transition: background 0.15s; }
         .user-item:hover, .user-item.active { background: #202c33; }
-        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-        .user-info { flex: 1; }
-        .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); }
-        .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
-        .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
+        .user-item img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+        .user-info { flex: 1; min-width: 0; }
+        .user-info-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .user-info strong { font-size: 1rem; color: var(--wa-text); font-weight: 400; }
+        .user-info span { font-size: 0.75rem; color: var(--wa-subtext); }
+        .last-msg { font-size: 0.85rem; color: var(--wa-subtext); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+        /* Floating Action Button (New Chat Icon like WhatsApp) */
+        .fab-btn { position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px; background: var(--wa-accent); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.4); cursor: pointer; z-index: 100; display: none; }
 
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
-        .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
-        .target-profile { display: flex; align-items: center; gap: 12px; }
+        /* Chat Main Screen */
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: #0b141a; height: 100dvh; min-width: 0; position: relative; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; }
+        .chat-header { height: 60px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-left: 1px solid var(--wa-border); flex-shrink: 0; }
+        .target-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
         .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .header-actions { display: flex; gap: 16px; align-items: center; }
+        .chat-header-actions { display: flex; gap: 24px; color: var(--wa-subtext); font-size: 1.2rem; align-items: center; }
 
-        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
+        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 
-        #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
-
-        .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
-        .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
-
-        #emojiBox { display: none; position: absolute; bottom: 68px; left: 10px; background: var(--panel-dark); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px; max-width: 300px; flex-wrap: wrap; gap: 10px; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        #emojiBox span { font-size: 1.5rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
-        #emojiBox span:hover { transform: scale(1.2); }
-
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
-        .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
-        .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
-        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; }
-        .msg audio { max-width: 100%; margin-top: 5px; }
+        .msg { max-width: 65%; padding: 6px 10px 8px 10px; border-radius: 7.5px; font-size: 0.92rem; word-break: break-word; position: relative; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+        .msg.sent { align-self: flex-end; background: var(--wa-sent); border-top-right-radius: 0; }
+        .msg.recv { align-self: flex-start; background: var(--wa-recv); border-top-left-radius: 0; }
+        .msg img, .msg video { max-width: 100%; border-radius: 6px; margin-top: 4px; max-height: 250px; cursor: pointer; }
+        .msg audio { max-width: 100%; margin-top: 4px; }
         
-        .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
-        .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+        .time-ticks { font-size: 0.65rem; color: var(--wa-subtext); text-align: right; margin-top: 2px; float: right; margin-left: 10px; display: flex; align-items: center; gap: 2px; }
         .blue-ticks { color: #53bdeb; font-weight: bold; }
 
-        .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
+        /* Exact WhatsApp Chat Footer Bar */
+        .chat-input-area { height: 62px; background: var(--wa-header); padding: 10px 16px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+        .wa-input-box { flex: 1; background: var(--wa-input-bg); border-radius: 8px; padding: 10px 14px; border: none; color: #fff; outline: none; font-size: 0.95rem; }
+        .action-icon { background: none; border: none; color: var(--wa-subtext); font-size: 1.35rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        .action-icon:hover { color: var(--wa-text); }
 
-        #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
-        .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
-        .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
-        .btn-reply-action { background: var(--accent-green); color: #fff; }
-        .btn-del-everyone { background: #ff5252; color: #fff; }
-        .btn-del-me { background: #2a3942; color: #fff; }
-        .btn-cancel { background: transparent; color: var(--text-secondary); }
-
-        #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
-        .call-card { background: var(--panel-dark); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid var(--card-border); width: 340px; }
-        .call-video-box { width: 100%; height: 230px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
+        /* Call Modal Screen */
+        #callModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 3000; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
+        .call-card { background: var(--wa-panel); padding: 25px; border-radius: 18px; text-align: center; border: 1px solid var(--wa-border); width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .call-video-box { width: 100%; height: 240px; background: #000; border-radius: 12px; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; margin-top: 12px; }
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
-        #localVideo { width: 90px; height: 110px; object-fit: cover; position: absolute; bottom: 10px; right: 10px; border-radius: 8px; border: 2px solid var(--accent-green); }
-        .call-btns { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
-        .btn-accept { background: var(--accent-green); border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
-        .btn-reject { background: #ff5252; border: none; padding: 10px 22px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer; }
-
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
-        .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
-        .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
-        .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
+        #localVideo { width: 85px; height: 110px; object-fit: cover; position: absolute; bottom: 10px; right: 10px; border-radius: 8px; border: 2px solid var(--wa-accent); }
+        .call-btns { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
+        .btn-accept { background: var(--wa-accent); border: none; padding: 10px 24px; border-radius: 24px; color: #fff; font-weight: bold; cursor: pointer; }
+        .btn-reject { background: #ff5252; border: none; padding: 10px 24px; border-radius: 24px; color: #fff; font-weight: bold; cursor: pointer; }
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; display: flex; }
@@ -132,41 +107,25 @@
 </head>
 <body>
 
-    <div id="splashScreen">
-        <div class="alien-logo-badge">Alien_0729👽</div>
-        <div class="splash-title">Quantum Messenger</div>
-    </div>
-
+    <!-- Auth / Login Screen -->
     <div id="authOverlay">
         <div class="auth-card">
-            <h2>Quantum Web</h2>
-            <input type="text" id="inputName" placeholder="Username">
-            <input type="password" id="inputCode" placeholder="Passcode (Master: pranav123 / Dynamic: 4829)">
-            <input type="text" id="inputAvatar" placeholder="Profile Avatar URL (Optional)">
-            <button onclick="login()">Enter Chat</button>
+            <h2>WhatsApp Web</h2>
+            <input type="text" id="inputName" placeholder="Enter your name">
+            <input type="text" id="inputAvatar" placeholder="Avatar URL (Optional)">
+            <button onclick="login()">Start Messaging</button>
         </div>
     </div>
 
-    <div id="deleteModal">
-        <div class="delete-card">
-            <h4 style="margin-bottom:12px;">Message Options</h4>
-            <button class="btn-reply-action" onclick="setReplyMessage()">↩ Reply</button>
-            <button class="btn-del-me" onclick="execDeleteMe()">🗑 Delete for me</button>
-            <button class="btn-del-everyone" id="btnDelEveryone" onclick="execDeleteEveryone()">🗑 Delete for everyone</button>
-            <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-        </div>
-    </div>
-
+    <!-- Call Screen Modal -->
     <div id="callModal">
         <div class="call-card">
-            <h3 id="callStatusText">Calling...</h3>
-            <div id="callerNameText" style="color:var(--text-secondary); font-size:0.9rem; margin-top:4px;">User</div>
-            
+            <h3 id="callStatusText" style="color:var(--wa-text);">Calling...</h3>
+            <div id="callerNameText" style="color:var(--wa-subtext); font-size:0.9rem; margin-top:4px;">User</div>
             <div class="call-video-box">
                 <video id="remoteVideo" autoplay playsinline></video>
                 <video id="localVideo" autoplay playsinline muted></video>
             </div>
-
             <div class="call-btns">
                 <button class="btn-accept" id="acceptCallBtn" onclick="acceptCall()">Accept</button>
                 <button class="btn-reject" onclick="endCall()">End</button>
@@ -174,72 +133,74 @@
         </div>
     </div>
 
+    <!-- Main WhatsApp Interface -->
     <div class="app-container" id="appContainer">
+        
+        <!-- Sidebar Chat List -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <div class="user-profile-badge">
-                    <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()">
-                    <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
-                    <div>
-                        <strong id="myUsernameText">User</strong>
-                        <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Online</div>
-                    </div>
+                <div class="wa-profile-area">
+                    <img id="myAvatarImg" src="" class="my-avatar" title="Your Profile">
+                    <span id="myUsernameText" style="font-weight: 500; font-size: 1.05rem;"></span>
+                </div>
+                <div class="header-icons">
+                    <span title="Status">⭕</span>
+                    <span title="New Chat">💬</span>
+                    <span title="Menu">⋮</span>
                 </div>
             </div>
 
-            <div class="admin-box" id="adminBox">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="customCodeInput" placeholder="New Dynamic Code" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none;">
-                    <button onclick="setCustomCode()">Change</button>
+            <div class="wa-search-container">
+                <div class="wa-search-box">
+                    <span>🔍</span>
+                    <input type="text" placeholder="Search or start new chat">
                 </div>
-                <button onclick="generateCode()">🎲 Generate Random Code</button>
             </div>
 
-            <div style="padding:10px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
+            <div class="filter-pills">
+                <div class="filter-pill active">All</div>
+                <div class="filter-pill">Unread</div>
+                <div class="filter-pill">Favourites</div>
+                <div class="filter-pill">Groups</div>
+            </div>
+
             <div class="user-list" id="userListContainer"></div>
         </div>
 
+        <!-- Chat Window -->
         <div class="chat-main">
             <div class="chat-header">
                 <div class="target-profile">
-                    <button class="btn-icon" onclick="closeMobileChat()" style="display:none; font-size:1.3rem; margin-right:5px;" id="backBtn">←</button>
-                    <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar">
+                    <button class="action-icon" onclick="closeMobileChat()" style="display:none; margin-right:4px;" id="backBtn">⬅</button>
+                    <img id="targetAvatarImg" src="" class="target-avatar">
                     <div>
-                        <strong id="targetNameText">Select User</strong>
-                        <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
+                        <strong id="targetNameText" style="font-weight: 400; font-size: 1.05rem;">Select a chat</strong>
+                        <div id="targetStatusText" style="font-size:0.75rem; color:var(--wa-subtext);">online</div>
                     </div>
                 </div>
                 
-                <div class="header-actions">
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">📞</button>
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(true)" title="Video Call">📹</button>
+                <div class="chat-header-actions">
+                    <span onclick="startCall(true)" title="Video Call" style="cursor:pointer;">📹</span>
+                    <span onclick="startCall(false)" title="Voice Call" style="cursor:pointer;">📞</span>
+                    <span title="Menu" style="cursor:pointer;">⋮</span>
                 </div>
             </div>
 
             <div class="chat-body" id="chatWin"></div>
 
-            <div id="replyPreviewBar">
-                <span id="replyPreviewText">Replying to message...</span>
-                <button onclick="cancelReply()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">✕</button>
-            </div>
-
-            <div id="emojiBox">
-                <span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span>
-                <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️')">❤️</span>
-                <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🔥')">🔥</span>
-                <span onclick="addEmoji('🎉')">🎉</span><span onclick="addEmoji('🙏')">🙏</span>
-                <span onclick="addEmoji('😎')">😎</span><span onclick="addEmoji('😭')">😭</span>
-            </div>
-
-            <div class="chat-input" id="chatInputArea">
-                <button class="btn-icon" onclick="toggleEmojiBox()">😊</button>
-                <button class="btn-icon" onclick="document.getElementById('fileInput').click()">📎</button>
+            <!-- Exact WhatsApp Bottom Footer Bar (Emoji, Attach, Rupee UPI, Camera, Mic) -->
+            <div class="chat-input-area">
+                <button class="action-icon" title="Emoji">😊</button>
+                <button class="action-icon" title="Attach" onclick="document.getElementById('fileInput').click()">📎</button>
                 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
                 
-                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
+                <button class="action-icon" title="Payments">₹</button>
+                <button class="action-icon" title="Camera" onclick="document.getElementById('fileInput').click()">📷</button>
+
+                <input type="text" id="msgInput" class="wa-input-box" placeholder="Type a message" oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
                 
-                <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Record Voice Message">🎙</button>
-                <button class="btn-icon" id="sendBtn" style="color:var(--accent-green); display:none;" onclick="sendText()" title="Send Message">➔</button>
+                <button class="action-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Voice Message">🎙</button>
+                <button class="action-icon" id="sendBtn" style="color:var(--wa-accent); display:none;" onclick="sendText()" title="Send">➤</button>
             </div>
         </div>
     </div>
@@ -249,30 +210,24 @@
     <script>
         const socket = io();
         let myName = '', selectedTargetUser = null, allHistory = [];
-        let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
-        let selectedMsgForDelete = null;
-        let activeReplyMsg = null;
-
         let mediaRecorder = null, audioChunks = [], isRecording = false;
+        let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
         let typingTimeout = null;
 
-        let peerConnection = null, localStream = null, incomingOffer = null, isVideoCall = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         window.onload = () => {
-            const savedName = localStorage.getItem('quantum_username');
+            const savedName = localStorage.getItem('wa_username');
             if(savedName) document.getElementById('inputName').value = savedName;
         };
 
         function login() {
             myName = document.getElementById('inputName').value.trim();
-            const code = document.getElementById('inputCode').value.trim();
             const avatar = document.getElementById('inputAvatar').value.trim();
-            
-            if(!myName) return alert('Username is required!');
+            if(!myName) return alert('Name is required!');
 
-            localStorage.setItem('quantum_username', myName);
-            socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
+            localStorage.setItem('wa_username', myName);
+            socket.emit('login-attempt', { username: myName, avatarUrl: avatar });
         }
 
         socket.on('login-success', (data) => {
@@ -280,54 +235,27 @@
             document.getElementById('appContainer').style.display = 'flex';
             document.getElementById('myUsernameText').innerText = data.username;
             document.getElementById('myAvatarImg').src = data.avatarUrl;
-            document.getElementById('myRoleBadge').innerText = data.isAdmin ? 'Master Admin 👑' : 'Pro User';
-            
-            if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
         });
-
-        socket.on('login-failed', msg => alert(msg));
-
-        function generateCode() { socket.emit('generate-new-code'); }
-        function setCustomCode() {
-            const newCode = document.getElementById('customCodeInput').value.trim();
-            if(newCode) {
-                socket.emit('set-custom-code', { newCode });
-                document.getElementById('customCodeInput').value = '';
-            }
-        }
-
-        socket.on('code-updated', (data) => alert(`Passcode Updated: ${data.newCode}`));
-
-        function updateProfileLogo(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    document.getElementById('myAvatarImg').src = e.target.result;
-                    socket.emit('update-avatar', { username: myName, newAvatarUrl: e.target.result });
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
 
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
-            const amIAdmin = document.getElementById('myRoleBadge').innerText.includes('Admin');
 
             users.forEach(u => {
                 if(u.username !== myName) {
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
-                    const statusText = u.isOnline ? 'Online' : (u.lastSeen || 'Offline');
+                    const statusText = u.isOnline ? 'online' : (u.lastSeen || 'offline');
                     
                     div.innerHTML = `
                         <img src="${u.avatarUrl}">
                         <div class="user-info">
-                            <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
-                            <span>${statusText}</span>
+                            <div class="user-info-top">
+                                <strong>${u.username}</strong>
+                                <span>10:45 AM</span>
+                            </div>
+                            <div class="last-msg">${statusText}</div>
                         </div>
-                        ${u.isOnline ? '<div class="online-dot"></div>' : ''}
-                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
                     `;
                     div.onclick = () => selectTargetUser(u);
                     container.appendChild(div);
@@ -335,17 +263,11 @@
             });
         });
 
-        function removeUser(targetUsername) {
-            if(confirm(`Remove ${targetUsername}?`)) socket.emit('remove-user-by-admin', { targetUsername });
-        }
-
-        socket.on('kicked-by-admin', (msg) => { alert(msg); location.reload(); });
-
         function selectTargetUser(userObj) {
             selectedTargetUser = userObj.username;
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
-            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
+            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'online' : (userObj.lastSeen || 'offline');
             document.body.classList.add('mobile-chat-open');
             renderFilteredHistory();
         }
@@ -362,83 +284,21 @@
             }
         });
 
-        socket.on('message-deleted-everyone', (data) => {
-            allHistory = allHistory.filter(m => m.msgId !== data.msgId);
-            renderFilteredHistory();
-        });
-
-        function openDeleteModal(msgObj) {
-            selectedMsgForDelete = msgObj;
-            document.getElementById('deleteModal').style.display = 'flex';
-            document.getElementById('btnDelEveryone').style.display = msgObj.senderName === myName ? 'block' : 'none';
-        }
-
-        function closeDeleteModal() {
-            selectedMsgForDelete = null;
-            document.getElementById('deleteModal').style.display = 'none';
-        }
-
-        function setReplyMessage() {
-            if(selectedMsgForDelete) {
-                activeReplyMsg = selectedMsgForDelete;
-                document.getElementById('replyPreviewBar').style.display = 'flex';
-                document.getElementById('replyPreviewText').innerText = `Replying to: ${selectedMsgForDelete.message || selectedMsgForDelete.mediaType}`;
-            }
-            closeDeleteModal();
-        }
-
-        function cancelReply() {
-            activeReplyMsg = null;
-            document.getElementById('replyPreviewBar').style.display = 'none';
-        }
-
-        function execDeleteMe() {
-            if(selectedMsgForDelete) {
-                deletedForMeMsgIds.push(selectedMsgForDelete.msgId);
-                localStorage.setItem('deletedForMe', JSON.stringify(deletedForMeMsgIds));
-                renderFilteredHistory();
-            }
-            closeDeleteModal();
-        }
-
-        function execDeleteEveryone() {
-            if(selectedMsgForDelete && selectedMsgForDelete.senderName === myName) {
-                socket.emit('delete-message-everyone', { msgId: selectedMsgForDelete.msgId });
-            }
-            closeDeleteModal();
-        }
-
         function renderFilteredHistory() {
             const win = document.getElementById('chatWin');
             win.innerHTML = '';
             
             const conversation = allHistory.filter(m => 
-                ((m.senderName === myName && m.targetName === selectedTargetUser) ||
-                (m.senderName === selectedTargetUser && m.targetName === myName)) &&
-                !deletedForMeMsgIds.includes(m.msgId)
+                (m.senderName === myName && m.targetName === selectedTargetUser) ||
+                (m.senderName === selectedTargetUser && m.targetName === myName)
             );
 
             conversation.forEach(msg => {
-                if(msg.mediaType === 'call_log') {
-                    const div = document.createElement('div');
-                    div.className = 'call-log-bubble';
-                    div.innerHTML = `📞 ${msg.message} • ${msg.time}`;
-                    div.onclick = () => openDeleteModal(msg);
-                    win.appendChild(div);
-                    return;
-                }
-
                 const isMe = msg.senderName === myName;
                 const div = document.createElement('div');
                 div.className = `msg ${isMe ? 'sent' : 'recv'}`;
-                div.onclick = () => openDeleteModal(msg);
                 
-                let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
-                
-                if(msg.replyTo) {
-                    html += `<div class="reply-quote">${msg.replyTo}</div>`;
-                }
-
+                let html = '';
                 if(msg.mediaType === 'text') html += msg.message;
                 else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
                 else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
@@ -474,17 +334,12 @@
             }
         }
 
-        function toggleEmojiBox() {
-            const box = document.getElementById('emojiBox');
-            box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
-        }
-
-        function addEmoji(emoji) {
-            const input = document.getElementById('msgInput');
-            input.value += emoji;
-            handleInputChange();
-            document.getElementById('emojiBox').style.display = 'none';
-        }
+        socket.on('user-typing-status', (data) => {
+            if(selectedTargetUser === data.fromUser) {
+                document.getElementById('targetStatusText').innerText = data.isTyping ? 'typing...' : 'online';
+                document.getElementById('targetStatusText').style.color = data.isTyping ? 'var(--wa-accent)' : 'var(--wa-subtext)';
+            }
+        });
 
         function sendText() {
             const txt = document.getElementById('msgInput').value.trim();
@@ -494,14 +349,11 @@
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: txt,
-                mediaType: 'text',
-                replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null
+                mediaType: 'text'
             });
             
             document.getElementById('msgInput').value = '';
-            cancelReply();
             handleInputChange();
-            socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
         }
 
         function sendMedia(input) {
@@ -522,7 +374,7 @@
         }
 
         async function toggleRecordAudio() {
-            if(!selectedTargetUser) return alert('Select user first!');
+            if(!selectedTargetUser) return alert('Select chat first!');
             const btn = document.getElementById('voiceBtn');
             
             if(!isRecording) {
@@ -545,46 +397,30 @@
                     };
                     mediaRecorder.start();
                     isRecording = true;
-                    btn.style.color = 'red';
+                    btn.style.color = '#ff5252';
                 } catch(err) {
-                    alert('Microphone Access Denied!');
+                    alert('Mic permission error');
                 }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                btn.style.color = 'var(--text-secondary)';
+                btn.style.color = 'var(--wa-subtext)';
             }
         }
-
-        socket.on('user-typing-status', (data) => {
-            if(selectedTargetUser === data.fromUser) {
-                document.getElementById('targetStatusText').innerText = data.isTyping ? 'typing...' : 'Online';
-                document.getElementById('targetStatusText').style.color = data.isTyping ? 'var(--accent-green)' : 'var(--text-secondary)';
-            }
-        });
 
         function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
 
         async function startCall(videoMode) {
-            if(!selectedTargetUser) return alert('Select user to call!');
+            if(!selectedTargetUser) return;
             isVideoCall = videoMode;
-
-            socket.emit('send-private-message', {
-                senderName: myName,
-                targetName: selectedTargetUser,
-                message: isVideoCall ? 'Outgoing Video Call' : 'Outgoing Voice Call',
-                mediaType: 'call_log'
-            });
-
             document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callStatusText').innerText = isVideoCall ? 'Video Calling...' : 'Voice Calling...';
+            document.getElementById('callStatusText').innerText = isVideoCall ? 'Video calling...' : 'Calling...';
             document.getElementById('callerNameText').innerText = selectedTargetUser;
             document.getElementById('acceptCallBtn').style.display = 'none';
 
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCall });
                 document.getElementById('localVideo').srcObject = isVideoCall ? localStream : null;
-
                 peerConnection = new RTCPeerConnection(rtcConfig);
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -599,10 +435,8 @@
 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
-
                 socket.emit('call-user', { targetName: selectedTargetUser, offer, isVideo: isVideoCall });
             } catch(err) {
-                alert("Camera/Microphone Permission Denied");
                 endCallUI();
             }
         }
@@ -611,9 +445,8 @@
             incomingOffer = data.offer;
             isVideoCall = data.isVideo;
             selectedTargetUser = data.fromUser;
-            
             document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callStatusText').innerText = isVideoCall ? 'Incoming Video Call' : 'Incoming Voice Call';
+            document.getElementById('callStatusText').innerText = isVideoCall ? 'Incoming video call' : 'Incoming voice call';
             document.getElementById('callerNameText').innerText = data.fromUser;
             document.getElementById('acceptCallBtn').style.display = 'inline-block';
         });
@@ -621,11 +454,9 @@
         async function acceptCall() {
             document.getElementById('acceptCallBtn').style.display = 'none';
             document.getElementById('callStatusText').innerText = 'Connected';
-
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideoCall });
                 document.getElementById('localVideo').srcObject = isVideoCall ? localStream : null;
-
                 peerConnection = new RTCPeerConnection(rtcConfig);
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -641,10 +472,8 @@
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
-
                 socket.emit('answer-call', { targetName: selectedTargetUser, answer });
             } catch(err) {
-                alert("Camera/Microphone Permission Denied");
                 endCallUI();
             }
         }
