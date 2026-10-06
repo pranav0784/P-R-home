@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB
+    maxHttpBufferSize: 1e8, // 100MB max payload
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -70,7 +70,6 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                // FIXED: Return to stop code execution on invalid passcode
                 return socket.emit('login-failed', 'अमान्य पासकोड (Invalid Passcode)!');
             }
         }
@@ -126,7 +125,6 @@ io.on('connection', (socket) => {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
             
-            // Kick target user if online
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
                 io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
@@ -153,16 +151,36 @@ io.on('connection', (socket) => {
             message: data.message || '',
             mediaType: data.mediaType || null,
             mediaUrl: data.mediaUrl || null,
+            isViewOnce: !!data.isViewOnce,
+            isOpened: false,
             replyTo: data.replyTo || null,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         };
 
         chatHistory.push(msgObject);
 
-        // Receiver aur Sender dono ko message bhejien
         io.to(data.targetName).emit('receive-private-message', msgObject);
         if (data.senderName !== data.targetName) {
             io.to(data.senderName).emit('receive-private-message', msgObject);
+        }
+    });
+
+    socket.on('mark-messages-read', (data) => {
+        chatHistory.forEach(m => {
+            if (m.senderName === data.senderName && m.targetName === data.readerName) {
+                m.isRead = true;
+                m.isDelivered = true;
+            }
+        });
+        io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
+    });
+
+    socket.on('mark-viewonce-opened', (data) => {
+        const msg = chatHistory.find(m => m.msgId === data.msgId);
+        if (msg) {
+            msg.isOpened = true;
+            io.to(msg.senderName).emit('viewonce-opened-update', { msgId: data.msgId });
+            io.to(msg.targetName).emit('viewonce-opened-update', { msgId: data.msgId });
         }
     });
 
@@ -180,7 +198,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- LIVE WHITEBOARD (PAINT BOARD) ---
+    // --- LIVE WHITEBOARD ---
     socket.on('wb-draw-data', (data) => {
         if (data.targetName) {
             io.to(data.targetName).emit('wb-draw-receive', {
@@ -230,13 +248,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- DISCONNECT HANDLER ---
+    // --- DISCONNECT HANDLER (FIXED LAST SEEN FORMAT) ---
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
             if (registeredUsers[username]) {
-                registeredUsers[username].lastSeen = `Last seen today at ${timeStr}`;
+                registeredUsers[username].lastSeen = `last seen today at ${timeStr}`;
             }
             delete activeSockets[socket.id];
             updateUserList();
