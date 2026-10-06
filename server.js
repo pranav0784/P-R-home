@@ -7,19 +7,21 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8,
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
 });
 
-app.use(express.static(__dirname));
+// Static Files & Basic Route
+app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const registeredUsers = {}; // { username: { avatarUrl, isAdmin, lastSeen } }
+// Data Structures
+const registeredUsers = {}; // { username: { username, avatarUrl, isAdmin, lastSeen } }
 const activeSockets = {};   // { socketId: username }
 let chatHistory = [];       
 
@@ -39,12 +41,25 @@ function getUserSocketId(username) {
     return null;
 }
 
+function updateUserList() {
+    const list = Object.values(registeredUsers).map(user => ({
+        ...user,
+        isOnline: Object.values(activeSockets).includes(user.username)
+    }));
+    io.emit('update-user-list', list);
+}
+
 io.on('connection', (socket) => {
 
+    // --- LOGIN SYSTEM ---
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
-        let isAdmin = false;
+        
+        if (!username) {
+            return socket.emit('login-failed', 'Username zaroori hai!');
+        }
 
+        let isAdmin = false;
         const isExistingUser = !!registeredUsers[username];
 
         if (isExistingUser) {
@@ -55,11 +70,12 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
+                // FIXED: Return to stop code execution on invalid passcode
                 return socket.emit('login-failed', 'अमान्य पासकोड (Invalid Passcode)!');
             }
         }
 
-        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`;
+        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
 
         if (!registeredUsers[username]) {
             registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
@@ -87,6 +103,7 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
+    // --- ADMIN CONTROLS ---
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -108,7 +125,12 @@ io.on('connection', (socket) => {
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
-            io.to(userToKick).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
+            
+            // Kick target user if online
+            const targetSocketId = getUserSocketId(userToKick);
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
+            }
             updateUserList();
         }
     });
@@ -120,9 +142,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- MESSAGING SYSTEM ---
     socket.on('send-private-message', (data) => {
+        if (!data.targetName || !data.senderName) return;
+
         const msgObject = {
-            msgId: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            msgId: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
@@ -134,8 +159,11 @@ io.on('connection', (socket) => {
 
         chatHistory.push(msgObject);
 
+        // Receiver aur Sender dono ko message bhejien
         io.to(data.targetName).emit('receive-private-message', msgObject);
-        io.to(data.senderName).emit('receive-private-message', msgObject);
+        if (data.senderName !== data.targetName) {
+            io.to(data.senderName).emit('receive-private-message', msgObject);
+        }
     });
 
     socket.on('delete-message-everyone', (data) => {
@@ -144,14 +172,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('typing', (data) => {
-        io.to(data.targetName).emit('user-typing-status', { fromUser: activeSockets[socket.id], isTyping: data.isTyping });
+        if (data.targetName) {
+            io.to(data.targetName).emit('user-typing-status', { 
+                fromUser: activeSockets[socket.id], 
+                isTyping: data.isTyping 
+            });
+        }
     });
 
-    // --- व्हाइटबोर्ड (Whiteboard) इवेंट्स ---
+    // --- LIVE WHITEBOARD (PAINT BOARD) ---
     socket.on('wb-draw-data', (data) => {
-        const targetSocketId = getUserSocketId(data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('wb-draw-receive', {
+        if (data.targetName) {
+            io.to(data.targetName).emit('wb-draw-receive', {
                 senderName: activeSockets[socket.id],
                 x0: data.x0, y0: data.y0,
                 x1: data.x1, y1: data.y1,
@@ -162,31 +194,43 @@ io.on('connection', (socket) => {
     });
 
     socket.on('wb-clear-data', (data) => {
-        const targetSocketId = getUserSocketId(data.targetName);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('wb-clear-receive', {
+        if (data.targetName) {
+            io.to(data.targetName).emit('wb-clear-receive', {
                 senderName: activeSockets[socket.id]
             });
         }
     });
 
-    // --- वीडियो / वॉइस कॉल और WebRTC सिग्नलिंग ---
+    // --- WEBRTC CALLING ---
     socket.on('call-user', (data) => {
-        io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
+        if (data.targetName) {
+            io.to(data.targetName).emit('incoming-call', { 
+                fromUser: activeSockets[socket.id], 
+                offer: data.offer, 
+                isVideo: data.isVideo 
+            });
+        }
     });
 
     socket.on('answer-call', (data) => {
-        io.to(data.targetName).emit('call-accepted', { answer: data.answer });
+        if (data.targetName) {
+            io.to(data.targetName).emit('call-accepted', { answer: data.answer });
+        }
     });
 
     socket.on('ice-candidate', (data) => {
-        io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
+        if (data.targetName) {
+            io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
+        }
     });
 
     socket.on('end-call', (data) => {
-        io.to(data.targetName).emit('call-ended');
+        if (data.targetName) {
+            io.to(data.targetName).emit('call-ended');
+        }
     });
 
+    // --- DISCONNECT HANDLER ---
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
@@ -199,14 +243,6 @@ io.on('connection', (socket) => {
         }
     });
 });
-
-function updateUserList() {
-    const list = Object.values(registeredUsers).map(user => ({
-        ...user,
-        isOnline: Object.values(activeSockets).includes(user.username)
-    }));
-    io.emit('update-user-list', list);
-}
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
