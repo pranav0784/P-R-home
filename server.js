@@ -2,50 +2,32 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
 
-// 100MB Max Payload limit for high-res images/audio sending
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8,
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
 });
 
-// --- Push Notification Setup (VAPID Keys) ---
-const vapidKeys = {
-    publicKey: process.env.VAPID_PUBLIC_KEY || 'YOUR_PUBLIC_VAPID_KEY',
-    privateKey: process.env.VAPID_PRIVATE_KEY || 'YOUR_PRIVATE_VAPID_KEY'
-};
-
-webpush.setVapidDetails(
-    'mailto:admin@example.com',
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-);
-
-// --- Middleware & Routes ---
-app.use(express.json());
+// Static Files & Basic Route
 app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- In-Memory Data Stores ---
-const registeredUsers = {};    // { username: { username, avatarUrl, isAdmin, lastSeen } }
-const activeSockets = {};      // { socketId: username }
-const pushSubscriptions = {};  // { username: subscriptionObject }
+// Data Structures
+const registeredUsers = {}; // { username: { username, avatarUrl, isAdmin, lastSeen } }
+const activeSockets = {};   // { socketId: username }
 let chatHistory = [];       
 
-// --- Passcode System ---
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
-// --- Utility Functions ---
 function generateRandomCode() {
     return Math.floor(1000 + Math.random() * 9000).toString();
 }
@@ -67,62 +49,52 @@ function updateUserList() {
     io.emit('update-user-list', list);
 }
 
-// --- Socket.IO Event Engine ---
 io.on('connection', (socket) => {
 
-    // ------------------------------------
-    // 1. AUTHENTICATION & LOGIN
-    // ------------------------------------
+    // --- LOGIN SYSTEM ---
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         
-        if (!username || !username.trim()) {
-            return socket.emit('login-failed', 'यूज़रनेम आवश्यक है (Username is required)!');
+        if (!username) {
+            return socket.emit('login-failed', 'Username zaroori hai!');
         }
 
-        const cleanUsername = username.trim();
         let isAdmin = false;
-        const isExistingUser = !!registeredUsers[cleanUsername];
+        const isExistingUser = !!registeredUsers[username];
 
         if (isExistingUser) {
-            isAdmin = registeredUsers[cleanUsername].isAdmin;
+            isAdmin = registeredUsers[username].isAdmin;
         } else {
             if (inputCode === MASTER_ADMIN_CODE) {
                 isAdmin = true;
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
+                // FIXED: Return to stop code execution on invalid passcode
                 return socket.emit('login-failed', 'अमान्य पासकोड (Invalid Passcode)!');
             }
         }
 
-        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUsername)}`;
+        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
 
-        if (!registeredUsers[cleanUsername]) {
-            registeredUsers[cleanUsername] = { 
-                username: cleanUsername, 
-                avatarUrl: userAvatar, 
-                isAdmin: isAdmin, 
-                lastSeen: 'Online' 
-            };
+        if (!registeredUsers[username]) {
+            registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
         } else {
             if (avatarUrl) {
-                registeredUsers[cleanUsername].avatarUrl = avatarUrl;
+                registeredUsers[username].avatarUrl = avatarUrl;
             }
-            registeredUsers[cleanUsername].lastSeen = 'Online';
+            registeredUsers[username].lastSeen = 'Online';
         }
 
-        activeSockets[socket.id] = cleanUsername;
-        socket.join(cleanUsername);
+        activeSockets[socket.id] = username;
+        socket.join(username);
 
-        // Success Event - Synchronized with UI
         socket.emit('login-success', {
-            username: cleanUsername,
+            username: username,
             isAdmin: isAdmin,
-            avatarUrl: registeredUsers[cleanUsername].avatarUrl
+            avatarUrl: registeredUsers[username].avatarUrl
         });
 
-        // Push Chat History
         socket.emit('load-chat-history', chatHistory);
         updateUserList();
     });
@@ -131,9 +103,7 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
-    // ------------------------------------
-    // 2. ADMIN ACTIONS & CODE CONTROLS
-    // ------------------------------------
+    // --- ADMIN CONTROLS ---
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -145,7 +115,7 @@ io.on('connection', (socket) => {
     socket.on('set-custom-code', (data) => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin && data.newCode) {
-            currentDynamicCode = data.newCode.toString().trim();
+            currentDynamicCode = data.newCode.trim();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
@@ -156,6 +126,7 @@ io.on('connection', (socket) => {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
             
+            // Kick target user if online
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
                 io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
@@ -165,64 +136,33 @@ io.on('connection', (socket) => {
     });
 
     socket.on('update-avatar', (data) => {
-        const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]) {
-            registeredUsers[username].avatarUrl = data.newAvatarUrl;
+        if (registeredUsers[data.username]) {
+            registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
             updateUserList();
         }
     });
 
-    // ------------------------------------
-    // 3. WEB PUSH SUBSCRIPTION
-    // ------------------------------------
-    socket.on('register-push-subscription', (data) => {
-        const username = activeSockets[socket.id] || data.username;
-        if (username && data.subscription) {
-            pushSubscriptions[username] = data.subscription;
-        }
-    });
-
-    // ------------------------------------
-    // 4. CHAT, MEDIA & VIEW-ONCE SYSTEM
-    // ------------------------------------
+    // --- MESSAGING SYSTEM ---
     socket.on('send-private-message', (data) => {
-        const senderName = activeSockets[socket.id] || data.senderName;
-        if (!data.targetName || !senderName) return;
+        if (!data.targetName || !data.senderName) return;
 
         const msgObject = {
             msgId: Date.now().toString() + Math.random().toString(36).substring(2, 7),
-            senderName: senderName,
+            senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
             mediaType: data.mediaType || null,
             mediaUrl: data.mediaUrl || null,
             replyTo: data.replyTo || null,
-            isViewOnce: !!data.isViewOnce,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         };
 
-        // Don't store View Once media permanently in server history for security
-        if (!msgObject.isViewOnce) {
-            chatHistory.push(msgObject);
-        }
+        chatHistory.push(msgObject);
 
-        // Emit to Receiver and Sender
+        // Receiver aur Sender dono ko message bhejien
         io.to(data.targetName).emit('receive-private-message', msgObject);
-        if (senderName !== data.targetName) {
-            io.to(senderName).emit('receive-private-message', msgObject);
-        }
-
-        // Web Push Trigger for Receiver (👽)
-        const targetSub = pushSubscriptions[data.targetName];
-        if (targetSub) {
-            const payload = JSON.stringify({
-                title: '👽',
-                body: '👽'
-            });
-
-            webpush.sendNotification(targetSub, payload).catch(err => {
-                console.error('Push Notification Error:', err.message);
-            });
+        if (data.senderName !== data.targetName) {
+            io.to(data.senderName).emit('receive-private-message', msgObject);
         }
     });
 
@@ -232,23 +172,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('typing', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
+        if (data.targetName) {
             io.to(data.targetName).emit('user-typing-status', { 
-                fromUser: sender, 
-                isTyping: !!data.isTyping 
+                fromUser: activeSockets[socket.id], 
+                isTyping: data.isTyping 
             });
         }
     });
 
-    // ------------------------------------
-    // 5. LIVE WHITEBOARD / PAINTBOARD
-    // ------------------------------------
+    // --- LIVE WHITEBOARD (PAINT BOARD) ---
     socket.on('wb-draw-data', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
+        if (data.targetName) {
             io.to(data.targetName).emit('wb-draw-receive', {
-                senderName: sender,
+                senderName: activeSockets[socket.id],
                 x0: data.x0, y0: data.y0,
                 x1: data.x1, y1: data.y1,
                 color: data.color,
@@ -258,58 +194,43 @@ io.on('connection', (socket) => {
     });
 
     socket.on('wb-clear-data', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
+        if (data.targetName) {
             io.to(data.targetName).emit('wb-clear-receive', {
-                senderName: sender
+                senderName: activeSockets[socket.id]
             });
         }
     });
 
-    // ------------------------------------
-    // 6. WEBRTC AUDIO & VIDEO CALLING
-    // ------------------------------------
+    // --- WEBRTC CALLING ---
     socket.on('call-user', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
+        if (data.targetName) {
             io.to(data.targetName).emit('incoming-call', { 
-                fromUser: sender, 
+                fromUser: activeSockets[socket.id], 
                 offer: data.offer, 
-                isVideo: !!data.isVideo 
+                isVideo: data.isVideo 
             });
         }
     });
 
     socket.on('answer-call', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
-            io.to(data.targetName).emit('call-accepted', { 
-                fromUser: sender,
-                answer: data.answer 
-            });
+        if (data.targetName) {
+            io.to(data.targetName).emit('call-accepted', { answer: data.answer });
         }
     });
 
     socket.on('ice-candidate', (data) => {
-        const sender = activeSockets[socket.id];
-        if (data.targetName && sender) {
-            io.to(data.targetName).emit('ice-candidate', { 
-                fromUser: sender,
-                candidate: data.candidate 
-            });
+        if (data.targetName) {
+            io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
         }
     });
 
     socket.on('end-call', (data) => {
-        const sender = activeSockets[socket.id];
         if (data.targetName) {
-            io.to(data.targetName).emit('call-ended', { fromUser: sender });
+            io.to(data.targetName).emit('call-ended');
         }
     });
 
-    // ------------------------------------
-    // 7. DISCONNECT & OFFLINE STATUS
-    // ------------------------------------
+    // --- DISCONNECT HANDLER ---
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
@@ -323,10 +244,5 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- Start Server ---
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`=================================`);
-    console.log(`🚀 Server fully synced and running on port ${PORT}`);
-    console.log(`=================================`);
-});
+server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
