@@ -1,1331 +1,584 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quantum Messenger Pro</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <title>Chat App Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg-dark: #0b141a;
-            --panel-dark: #111b21;
-            --header-dark: #202c33;
-            --accent-green: #00a884;
-            --bubble-sent: #005c4b;
-            --bubble-recv: #202c33;
-            --text-primary: #e9edef;
-            --text-secondary: #8696a0;
-            --card-border: #222d34;
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body, html { height: 100%; width: 100%; background: #0b141a; color: #e9edef; overflow: hidden; }
+
+        /* Auth Screen */
+        #auth-container { position: fixed; inset: 0; background: #111b21; display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .auth-box { background: #202c33; padding: 25px; border-radius: 16px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .auth-box h2 { margin-bottom: 15px; color: #00a884; }
+        .auth-box input { width: 100%; margin-top: 12px; padding: 12px 15px; border-radius: 8px; border: 1px solid #2a3942; background: #111b21; color: #fff; font-size: 15px; outline: none; }
+        .auth-box button { width: 100%; margin-top: 18px; padding: 12px; border-radius: 8px; border: none; background: #00a884; color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+
+        /* App Layout */
+        #app-container { display: flex; width: 100vw; height: 100vh; background: #0b141a; }
+        #sidebar { width: 100%; max-width: 320px; background: #111b21; border-right: 1px solid #222d34; display: flex; flex-direction: column; }
+        @media (max-width: 600px) {
+            #sidebar { width: 100%; display: flex; }
+            #chat-area { display: none; width: 100%; }
+            body.in-chat #sidebar { display: none; }
+            body.in-chat #chat-area { display: flex; }
         }
+        .sidebar-header { padding: 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 18px; color: #e9edef; }
+        #user-list { list-style: none; overflow-y: auto; flex: 1; }
+        #user-list li { padding: 12px 16px; border-bottom: 1px solid #1f2c33; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+        #user-list li:hover { background: #202c33; }
+        .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #2a3942; }
+        .user-info { flex: 1; }
+        .user-name { font-weight: 600; font-size: 16px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #8696a0; }
+        .status-dot.online { background: #00a884; }
 
-        * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        html, body { height: 100%; width: 100%; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; }
+        /* Chat Area */
+        #chat-area { flex: 1; display: flex; flex-direction: column; background: #0b141a; background-image: radial-gradient(#1f2c33 1px, transparent 0); background-size: 24px 24px; position: relative; }
+        .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
+        .chat-header-user { display: flex; align-items: center; gap: 12px; }
+        .back-btn { display: none; font-size: 20px; cursor: pointer; color: #aebac1; margin-right: 8px; }
+        @media (max-width: 600px) { .back-btn { display: block; } }
+        .header-actions { display: flex; gap: 18px; font-size: 18px; color: #aebac1; }
+        .header-actions i { cursor: pointer; }
 
-        #splashScreen {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #0b141a; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            animation: fadeOut 0.8s ease 1.5s forwards;
-        }
-
-        .alien-logo-badge {
-            width: 150px; height: 150px; border-radius: 50%;
-            background: linear-gradient(135deg, #1f2c34, #0b141a);
-            border: 3px solid var(--accent-green); color: var(--accent-green);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.15rem; font-weight: bold; letter-spacing: 0.5px;
-            box-shadow: 0 0 30px rgba(0, 168, 132, 0.6);
-            animation: pulseZoom 1.2s infinite alternate ease-in-out;
-            text-shadow: 0 0 10px rgba(0, 255, 180, 0.7); user-select: none;
-        }
-
-        .splash-title { color: var(--accent-green); margin-top: 20px; font-weight: 700; font-size: 1.4rem; letter-spacing: 1px; }
-
-        @keyframes pulseZoom {
-            from { transform: scale(0.95); box-shadow: 0 0 15px rgba(0, 168, 132, 0.4); }
-            to { transform: scale(1.08); box-shadow: 0 0 35px rgba(0, 168, 132, 0.8); }
-        }
-        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
-
-        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
-        .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
-        .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
-        .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
-
-        .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
-
-        .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
-        .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
-
-        .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
-        .admin-box button { width: 100%; padding: 8px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
-
-        .user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
-        .user-item:hover, .user-item.active { background: #202c33; }
-        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-        .user-info { flex: 1; min-width: 0; }
-        .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
-        .online-dot { width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; }
+        #messages-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        .unread-badge { background: var(--accent-green); color: #000; font-size: 0.75rem; font-weight: bold; padding: 2px 7px; border-radius: 50%; display: inline-block; margin-left: 6px; }
-        .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+        /* Message Bubbles & Ticks */
+        .message { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 15px; position: relative; word-wrap: break-word; background: #202c33; align-self: flex-start; color: #e9edef; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+        .message.my-msg { background: #005c4b; align-self: flex-end; }
+        .msg-sender { font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #00a884; }
+        .my-msg .msg-sender { display: none; }
+        .msg-time { font-size: 11px; color: #8696a0; text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; gap: 4px; align-items: center; }
+        .tick-icon { font-size: 13px; color: #8696a0; }
+        .tick-icon.delivered { color: #8696a0; }
+        .tick-icon.read { color: #53bdeb; }
 
-        .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
-        .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
-        .target-profile { display: flex; align-items: center; gap: 12px; }
-        .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-        .header-actions { display: flex; gap: 16px; align-items: center; }
+        .msg-media { max-width: 100%; max-height: 280px; border-radius: 8px; margin-top: 4px; cursor: pointer; object-fit: cover; }
+        .view-once-badge { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 8px; cursor: pointer; color: #00a884; font-weight: bold; }
 
-        .chat-body { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#182229 1px, transparent 1px); background-size: 20px 20px; }
+        /* Camera & Emoji Popups */
+        #camera-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2100; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
+        #camera-video { width: 90%; max-width: 400px; border-radius: 12px; background: #000; }
+        .cam-btn { padding: 12px 24px; background: #00a884; color: #fff; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; }
 
-        #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
+        #emoji-picker { display: none; position: absolute; bottom: 70px; left: 15px; background: #202c33; border: 1px solid #2a3942; border-radius: 12px; padding: 10px; width: 280px; max-height: 180px; overflow-y: auto; grid-template-columns: repeat(6, 1fr); gap: 8px; z-index: 1200; }
+        #emoji-picker span { font-size: 20px; cursor: pointer; text-align: center; }
 
-        .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
-        .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
-        .btn-icon:hover { color: var(--accent-green); }
-        .btn-icon.active-toggle { color: var(--accent-green); background: rgba(0, 168, 132, 0.2); border-radius: 50%; }
+        /* AI Suggestion Bar */
+        #ai-suggestion-bar { display: none; padding: 6px 12px; background: #182229; border-top: 1px solid #222d34; font-size: 13px; gap: 8px; overflow-x: auto; white-space: nowrap; }
+        .ai-chip { background: #202c33; padding: 4px 10px; border-radius: 14px; color: #00a884; border: 1px solid #00a884; cursor: pointer; display: inline-block; }
 
-        /* --- EXTENDED WHATSAPP-STYLE EMOJI PICKER --- */
-        #emojiBox { 
-            display: none; position: absolute; bottom: 68px; left: 10px; 
-            background: var(--panel-dark); border: 1px solid var(--card-border); 
-            padding: 12px; border-radius: 12px; width: 320px; max-height: 250px; 
-            overflow-y: auto; flex-wrap: wrap; gap: 10px; z-index: 500; 
-            box-shadow: 0 8px 25px rgba(0,0,0,0.7); 
-        }
-        #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
-        #emojiBox span:hover { transform: scale(1.3); }
+        /* Input Bar */
+        .chat-input-bar { padding: 10px 12px; background: #202c33; display: flex; align-items: center; gap: 6px; }
+        .icon-btn { background: none; border: none; color: #8696a0; font-size: 19px; cursor: pointer; padding: 6px; display: flex; justify-content: center; align-items: center; }
+        .icon-btn.active { color: #00a884; }
+        .input-wrapper { flex: 1; background: #2a3942; border-radius: 24px; display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+        .input-wrapper input { flex: 1; background: none; border: none; padding: 10px 0; color: #fff; font-size: 15px; outline: none; }
+        .send-btn { background: #00a884; color: #fff; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 18px; }
 
-        /* --- AI SMART SUGGESTION BAR --- */
-        #aiSuggestionsBar {
-            display: none; position: absolute; bottom: 68px; left: 50px; right: 50px;
-            background: #182229; border: 1px solid var(--accent-green); padding: 8px 12px;
-            border-radius: 12px; gap: 8px; overflow-x: auto; z-index: 450;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        .ai-chip {
-            background: #2a3942; color: #e9edef; padding: 6px 12px; border-radius: 16px;
-            font-size: 0.82rem; cursor: pointer; white-space: nowrap; border: 1px solid var(--card-border);
-        }
-        .ai-chip:hover { background: var(--accent-green); color: #000; }
+        /* Lightbox & Whiteboard */
+        #image-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px; }
+        #image-modal img, #image-modal video { max-width: 100%; max-height: 75vh; object-fit: contain; }
+        .modal-top-bar { width: 100%; display: flex; justify-content: space-between; color: #fff; font-size: 22px; }
+        .download-btn { background: #00a884; color: #fff; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; }
 
-        .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
-        .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
-        .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
-        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; cursor: pointer; }
-        .msg audio { max-width: 100%; margin-top: 5px; }
-        
-        .view-once-badge {
-            display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4);
-            color: var(--accent-green); border: 1px solid var(--accent-green); padding: 6px 12px;
-            border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin-top: 4px;
-        }
-
-        .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
-        .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
-        .blue-ticks { color: #53bdeb; font-weight: bold; }
-        .grey-ticks { color: var(--text-secondary); font-weight: bold; }
-        .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-
-        /* --- DIRECT CAMERA MODAL --- */
-        #cameraModal {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
-        }
-        #camPreview { width: 100%; height: 80%; object-fit: cover; }
-        .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
-        .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
-
-        #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
-        .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
-        .delete-card button { width: 100%; padding: 10px; margin-top: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
-        .btn-reply-action { background: var(--accent-green); color: #fff; }
-        .btn-del-everyone { background: #ff5252; color: #fff; }
-        .btn-del-me { background: #2a3942; color: #fff; }
-        .btn-cancel { background: transparent; color: var(--text-secondary); }
-
-        #whiteboardModal {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: rgba(11, 20, 26, 0.98); z-index: 8000; flex-direction: column;
-        }
-        .wb-header {
-            min-height: 60px; background: var(--header-dark); padding: 8px 16px;
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-            border-bottom: 1px solid var(--card-border);
-        }
-        .wb-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .wb-tool-btn {
-            background: #2a3942; border: 1px solid var(--card-border); color: #fff;
-            padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;
-        }
-        .wb-tool-btn.active { background: var(--accent-green); border-color: var(--accent-green); color: #000; }
-        .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
-        #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
-
-        /* --- CALL & DRAGGABLE VIDEO STYLES --- */
-        #callModal {
-            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
-        }
-
-        .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; }
-        
-        #pipVideo {
-            position: absolute; top: 80px; right: 20px; width: 130px; height: 180px;
-            object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
-            z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab;
-            touch-action: none;
-        }
-        #pipVideo:active { cursor: grabbing; }
-
-        .call-top-bar {
-            position: relative; z-index: 10; width: 100%; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            pointer-events: none;
-        }
-
-        .call-controls-bar {
-            position: relative; z-index: 10; width: 100%; padding: 25px 20px;
-            display: flex; justify-content: center; gap: 20px; align-items: center;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-        }
-
-        .call-btn-circle {
-            width: 55px; height: 55px; border-radius: 50%; border: none;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.3rem; cursor: pointer; color: #fff; background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(5px); transition: transform 0.2s;
-        }
-        .btn-call-end { background: #ff3b30 !important; }
-        .btn-call-accept { background: #34c759 !important; }
-
-        .incoming-slide-card {
-            position: absolute; bottom: 30px; z-index: 30; width: 90%; max-width: 360px;
-            background: var(--panel-dark); border: 1px solid var(--card-border);
-            padding: 20px; border-radius: 24px; text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
-
-        /* In-App Toast Notification */
-        #inAppNotificationToast {
-            display: none; position: fixed; top: 20px; right: 20px; background: var(--panel-dark);
-            color: #fff; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--card-border);
-            z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
-
-        @media (max-width: 768px) {
-            .sidebar { width: 100%; display: flex; }
-            .chat-main { display: none; width: 100%; }
-            .mobile-chat-open .sidebar { display: none !important; }
-            .mobile-chat-open .chat-main { display: flex !important; }
-            #backBtn { display: inline-block !important; }
-        }
+        #whiteboard-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1500; justify-content: center; align-items: center; }
+        .wb-container { background: #202c33; padding: 15px; border-radius: 16px; display: flex; flex-direction: column; gap: 10px; }
+        canvas { border: 1px solid #3b4a54; background: #ffffff; border-radius: 8px; touch-action: none; }
     </style>
 </head>
 <body>
 
-    <div id="splashScreen">
-        <div class="alien-logo-badge">Alien_0729👽</div>
-        <div class="splash-title">Quantum Messenger Pro</div>
-    </div>
-
-    <div id="authOverlay">
-        <div class="auth-card">
-            <h2>Quantum Web</h2>
-            <input type="text" id="inputName" placeholder="Username">
-            <input type="password" id="inputCode" placeholder="Enter Passcode (Master: guddu05 / Dynamic)">
-            <input type="text" id="inputAvatar" placeholder="Profile Avatar URL (Optional)">
-            <button onclick="login()">Enter Chat</button>
+    <!-- Login Screen -->
+    <div id="auth-container">
+        <div class="auth-box">
+            <h2>Welcome Chat Pro</h2>
+            <input type="text" id="username-input" placeholder="Enter Username">
+            <input type="password" id="passcode-input" placeholder="Enter Passcode">
+            <button onclick="login()">Start Chat</button>
         </div>
     </div>
 
-    <div id="deleteModal">
-        <div class="delete-card">
-            <h4 style="margin-bottom:12px;">Message Options</h4>
-            <button class="btn-reply-action" onclick="setReplyMessage()">↩ Reply</button>
-            <button class="btn-del-me" onclick="execDeleteMe()">🗑 Delete for me</button>
-            <button class="btn-del-everyone" id="btnDelEveryone" onclick="execDeleteEveryone()">🗑 Delete for everyone</button>
-            <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Direct In-App Camera Modal -->
-    <div id="cameraModal">
-        <video id="camPreview" autoplay playsinline></video>
-        <div class="cam-controls">
-            <button class="btn-icon" style="color:#fff; font-size:1.8rem;" onclick="closeCamera()">✕</button>
-            <div class="cam-shutter-btn" onclick="captureDirectPhoto()"></div>
-            <button class="btn-icon" style="color:#fff; font-size:1.8rem;" onclick="switchDirectCamera()">🔄</button>
-        </div>
-    </div>
-
-    <!-- In-App Notification Toast -->
-    <div id="inAppNotificationToast">
-        <div style="font-weight:bold; font-size:0.9rem;" id="toastSender">New Message</div>
-        <div style="font-size:0.8rem; color:var(--text-secondary);" id="toastMessage"></div>
-    </div>
-
-    <div id="whiteboardModal">
-        <div class="wb-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <button class="wb-tool-btn" style="background:var(--accent-green); color:#000;" onclick="closeWhiteboardModal()">← Back</button>
-                <span style="font-size:1.4rem; color:var(--accent-green); font-weight:bold;" title="Infinity Whiteboard">∞</span>
-                <span id="wbPartnerBadge" style="font-size:0.8rem; color:var(--text-secondary);"></span>
-            </div>
-            <div class="wb-tools">
-                <input type="color" id="wbColorPicker" value="#00a884" title="Pen Color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
-                <input type="range" id="wbSizePicker" min="1" max="30" value="4" title="Brush Size" style="cursor:pointer; width:70px;">
-                <button class="wb-tool-btn active" id="wbPenBtn" onclick="setWbTool('pen')">✏️ Pen</button>
-                <button class="wb-tool-btn" id="wbEraserBtn" onclick="setWbTool('eraser')">🧹 Eraser</button>
-                <button class="wb-tool-btn" style="background:#ff5252; border-color:#ff5252; color:#fff;" onclick="clearWhiteboardLocal()">🗑 Clear</button>
-            </div>
-        </div>
-        <div class="wb-canvas-container" id="wbCanvasContainer">
-            <canvas id="liveWhiteboard"></canvas>
-        </div>
-    </div>
-
-    <div id="callModal">
-        <div class="call-top-bar">
-            <h2 id="callTargetName" style="color:#fff; font-size:1.3rem;">User</h2>
-            <div id="callStatusText" style="color:var(--accent-green); font-size:0.9rem; margin-top:4px;">Calling...</div>
-        </div>
-
-        <div class="video-full-container" id="videoContainer">
-            <video id="mainVideo" autoplay playsinline></video>
-            <video id="pipVideo" autoplay playsinline muted></video>
-        </div>
-
-        <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
-            <h3 id="incomingCallerName" style="color:#fff;">Caller</h3>
-            <p id="incomingCallType" style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">Incoming Call</p>
-            <div style="display:flex; justify-content:center; gap:20px; margin-top:18px;">
-                <button class="call-btn-circle btn-call-accept" onclick="acceptCall()">📞</button>
-                <button class="call-btn-circle btn-call-end" onclick="endCall()">✕</button>
-            </div>
-        </div>
-
-        <div class="call-controls-bar" id="activeCallControls">
-            <button class="call-btn-circle" onclick="switchCamera()" title="Switch Camera">🔄</button>
-            <button class="call-btn-circle" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
-            <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙</button>
-            <button class="call-btn-circle btn-call-end" onclick="endCall()" title="End Call">📞</button>
-        </div>
-    </div>
-
-    <div class="app-container" id="appContainer">
-        <div class="sidebar">
+    <!-- Workspace -->
+    <div id="app-container">
+        <div id="sidebar">
             <div class="sidebar-header">
-                <div class="user-profile-badge">
-                    <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()">
-                    <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
-                    <div>
-                        <strong id="myUsernameText">User</strong>
-                        <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Online</div>
-                    </div>
-                </div>
+                <span>Chats</span>
+                <i class="fa-solid fa-circle-notch"></i>
             </div>
-
-            <div class="admin-box" id="adminBox">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input type="text" id="customCodeInput" placeholder="New Dynamic Code" style="flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; outline: none;">
-                    <button onclick="setCustomCode()">Change</button>
-                </div>
-                <button onclick="generateCode()">🎲 Generate Random Code</button>
-            </div>
-
-            <div style="padding:10px 16px; font-size:0.8rem; color:var(--text-secondary); font-weight:bold;">CHATS</div>
-            <div class="user-list" id="userListContainer"></div>
+            <ul id="user-list"></ul>
         </div>
 
-        <div class="chat-main">
+        <div id="chat-area">
             <div class="chat-header">
-                <div class="target-profile">
-                    <button class="btn-icon" onclick="closeMobileChat()" style="display:none; font-size:1.3rem; margin-right:5px;" id="backBtn">←</button>
-                    <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar">
+                <div class="chat-header-user">
+                    <i class="fa-solid fa-arrow-left back-btn" onclick="goBackToUserList()"></i>
+                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed=default" id="active-avatar" class="user-avatar">
                     <div>
-                        <strong id="targetNameText">Select User</strong>
-                        <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
+                        <div id="active-chat-title" class="user-name">Select User</div>
+                        <div id="active-user-status" style="font-size: 12px; color: #8696a0;">Offline</div>
                     </div>
                 </div>
-                
                 <div class="header-actions">
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="openWhiteboardModal()" title="Live Whiteboard">🎨</button>
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(false)" title="Voice Call">📞</button>
-                    <button class="btn-icon" style="color:var(--accent-green);" onclick="startCall(true)" title="Video Call">📹</button>
+                    <i class="fa-solid fa-wand-magic-sparkles" onclick="triggerAISuggestions()" title="AI Reply Suggestion"></i>
+                    <i class="fa-solid fa-palette" onclick="openWhiteboard()" title="Live Whiteboard"></i>
                 </div>
             </div>
 
-            <div class="chat-body" id="chatWin"></div>
+            <div id="messages-container"></div>
 
-            <div id="replyPreviewBar">
-                <span id="replyPreviewText">Replying to message...</span>
-                <button onclick="cancelReply()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">✕</button>
-            </div>
+            <!-- AI Quick Reply Bar -->
+            <div id="ai-suggestion-bar"></div>
 
-            <!-- EXTENDED EMOJI PICKER -->
-            <div id="emojiBox"></div>
+            <!-- Emoji Picker Window -->
+            <div id="emoji-picker"></div>
 
-            <!-- AI QUICK REPLY BAR -->
-            <div id="aiSuggestionsBar"></div>
-
-            <div class="chat-input" id="chatInputArea">
-                <button class="btn-icon" onclick="toggleEmojiBox()" title="Emoji Picker">😊</button>
-                <button class="btn-icon" onclick="toggleAISuggestions()" title="AI Smart Reply">✨</button>
-                <button class="btn-icon" onclick="openDirectCamera()" title="Direct Camera">📷</button>
-                <button class="btn-icon" onclick="document.getElementById('fileInput').click()" title="Attach File">📎</button>
-                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
+            <!-- Input Bar -->
+            <div class="chat-input-bar">
+                <button class="icon-btn" onclick="toggleEmojiPicker()"><i class="fa-regular fa-face-smile"></i></button>
+                <input type="file" id="file-input" accept="image/*,video/*" style="display: none;" onchange="handleFileUpload(event)">
+                <button class="icon-btn" onclick="document.getElementById('file-input').click()"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="icon-btn" onclick="openCamera()"><i class="fa-solid fa-camera"></i></button>
+                <button class="icon-btn" id="voice-record-btn" onclick="toggleVoiceRecording()"><i class="fa-solid fa-microphone"></i></button>
+                <button class="icon-btn" id="view-once-btn" onclick="toggleViewOnce()" title="View Once Mode"><i class="fa-solid fa-1"></i></button>
                 
-                <!-- VIEW ONCE TOGGLE BUTTON -->
-                <button class="btn-icon" id="viewOnceBtn" onclick="toggleViewOnce()" title="View Once Mode (1️⃣)">1️⃣</button>
+                <div class="input-wrapper">
+                    <input type="text" id="msg-input" placeholder="Type a message..." oninput="handleTyping()" onkeypress="handleKeyPress(event)">
+                </div>
 
-                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
-                
-                <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Record Voice Message">🎙</button>
-                <button class="btn-icon" id="sendBtn" style="color:var(--accent-green); display:none;" onclick="sendText()" title="Send Message">➔</button>
+                <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
 
-    <audio id="notifySound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+    <!-- Camera Overlay -->
+    <div id="camera-modal">
+        <video id="camera-video" autoplay playsinline></video>
+        <div style="display:flex; gap:15px;">
+            <button class="cam-btn" onclick="captureCameraPhoto()">📸 Capture & Send</button>
+            <button class="cam-btn" style="background:#dc3545;" onclick="closeCamera()">✕ Close</button>
+        </div>
+    </div>
 
+    <!-- Lightbox Modal -->
+    <div id="image-modal">
+        <div class="modal-top-bar">
+            <span>Media View</span>
+            <i class="fa-solid fa-xmark" onclick="closeImageModal()" style="cursor: pointer;"></i>
+        </div>
+        <div id="media-preview-container"></div>
+        <a id="download-media-btn" href="" download class="download-btn"><i class="fa-solid fa-download"></i> Download</a>
+    </div>
+
+    <!-- Whiteboard Modal -->
+    <div id="whiteboard-modal">
+        <div class="wb-container">
+            <div style="display:flex; gap:10px; color:#fff;">
+                <input type="color" id="wb-color" value="#000000">
+                <input type="range" id="wb-size" min="1" max="20" value="3">
+                <button onclick="clearCanvas(true)">🧹 Clear</button>
+                <button onclick="closeWhiteboard()" style="background:#dc3545;">✕ Close</button>
+            </div>
+            <canvas id="paint-board" width="340" height="420"></canvas>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = '', selectedTargetUser = null, allHistory = [];
-        let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
-        let unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
-        let selectedMsgForDelete = null;
-        let activeReplyMsg = null;
-        let isViewOnceActive = false;
 
-        let mediaRecorder = null, audioChunks = [], isRecording = false;
+        let currentUser = localStorage.getItem('chat_username') || null;
+        let selectedTargetUser = null;
+        let isViewOnce = false;
+        let currentSelectedMedia = null;
+        let mediaType = null; // 'image', 'video', 'audio'
         let typingTimeout = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecordingAudio = false;
 
-        let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
-        let currentFacingMode = 'user';
-        let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
+        let localChatHistory = JSON.parse(localStorage.getItem('chat_history') || '[]');
 
-        // Direct Camera Variables
-        let camStream = null, camFacing = 'environment';
-
-        // Whiteboard Variables
-        let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
-        let lastX = 0, lastY = 0;
-
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-        const emojiList = [
-            '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','🥹','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗',
-            '😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕',
-            '🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😮‍💨','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨',
-            '😰','😥','😓','🫣','🤗','🫡','🤔','🫣','🤭','🫢','🫡','🤫','🫠','🤥','😶','🫥','😐','😑','😬','🫨',
-            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
-        ];
+        const emojis = ["😀","😂","😍","🥰","😎","👍","❤️","🙏","🔥","🎉","🎉","😊","😭","🏻","🙌","✨","💯","🤔","😴","🥳","👌","👏","⚡"];
 
         window.onload = () => {
-            const savedName = localStorage.getItem('quantum_username');
-            const savedCode = localStorage.getItem('quantum_passcode');
-            const savedAvatar = localStorage.getItem('quantum_avatar');
-            if(savedName && savedCode) {
-                document.getElementById('inputName').value = savedName;
-                document.getElementById('inputCode').value = savedCode;
-                if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
-                login(true);
-            }
-            populateEmojiBox();
-            initWhiteboardEngine();
-            initDraggablePip();
+            if (currentUser) document.getElementById('username-input').value = currentUser;
+            initEmojiPicker();
         };
 
-        function populateEmojiBox() {
-            const box = document.getElementById('emojiBox');
-            box.innerHTML = '';
-            emojiList.forEach(e => {
+        function initEmojiPicker() {
+            const picker = document.getElementById('emoji-picker');
+            picker.innerHTML = '';
+            emojis.forEach(e => {
                 const span = document.createElement('span');
                 span.innerText = e;
-                span.onclick = () => addEmoji(e);
-                box.appendChild(span);
+                span.onclick = () => {
+                    document.getElementById('msg-input').value += e;
+                };
+                picker.appendChild(span);
             });
         }
 
-        function login(isAuto = false) {
-            myName = document.getElementById('inputName').value.trim();
-            const code = document.getElementById('inputCode').value.trim();
-            let avatar = document.getElementById('inputAvatar').value.trim();
-            
-            if(!myName || !code) return isAuto ? null : alert('Username & Passcode are required!');
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emoji-picker');
+            picker.style.display = picker.style.display === 'grid' ? 'none' : 'grid';
+        }
 
-            const savedAvatar = localStorage.getItem('quantum_avatar');
-            if (!avatar && savedAvatar) avatar = savedAvatar;
+        function saveChatsToLocal(msg) {
+            const idx = localChatHistory.findIndex(m => m.msgId === msg.msgId);
+            if(idx >= 0) localChatHistory[idx] = msg;
+            else localChatHistory.push(msg);
+            localStorage.setItem('chat_history', JSON.stringify(localChatHistory));
+        }
 
-            localStorage.setItem('quantum_username', myName);
-            localStorage.setItem('quantum_passcode', code);
-            if(avatar) localStorage.setItem('quantum_avatar', avatar);
-
-            socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
+        function login() {
+            const username = document.getElementById('username-input').value.trim();
+            const inputCode = document.getElementById('passcode-input').value.trim();
+            if (!username) return alert('Enter a valid username!');
+            socket.emit('login-attempt', { username, inputCode });
         }
 
         socket.on('login-success', (data) => {
-            document.getElementById('authOverlay').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('myUsernameText').innerText = data.username;
-            document.getElementById('myAvatarImg').src = data.avatarUrl;
-            document.getElementById('myRoleBadge').innerText = data.isAdmin ? 'Master Admin 👑' : 'Pro User';
-            
-            localStorage.setItem('quantum_avatar', data.avatarUrl);
-            if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
+            currentUser = data.username;
+            localStorage.setItem('chat_username', currentUser);
+            document.getElementById('auth-container').style.display = 'none';
         });
 
-        socket.on('login-failed', msg => alert(msg));
+        socket.on('login-failed', (msg) => alert(msg));
 
-        function generateCode() { socket.emit('generate-new-code'); }
-        function setCustomCode() {
-            const newCode = document.getElementById('customCodeInput').value.trim();
-            if(newCode) {
-                socket.emit('set-custom-code', { newCode });
-                document.getElementById('customCodeInput').value = '';
-            }
-        }
-
-        socket.on('code-updated', (data) => alert(`Passcode Updated: ${data.newCode}`));
-
-        function updateProfileLogo(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    document.getElementById('myAvatarImg').src = e.target.result;
-                    localStorage.setItem('quantum_avatar', e.target.result);
-                    socket.emit('update-avatar', { username: myName, newAvatarUrl: e.target.result });
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        /* --- STABLE USER LIST & ONLINE STATUS --- */
         socket.on('update-user-list', (users) => {
-            const container = document.getElementById('userListContainer');
-            container.innerHTML = '';
-            const amIAdmin = document.getElementById('myRoleBadge').innerText.includes('Admin');
+            const listEl = document.getElementById('user-list');
+            listEl.innerHTML = '';
 
             users.forEach(u => {
-                if(u.username !== myName) {
-                    const div = document.createElement('div');
-                    div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
-                    
-                    // Standardized Last Seen / Online Time Format
-                    let statusText = 'Offline';
-                    if (u.isOnline) {
-                        statusText = 'Online';
-                    } else if (u.lastSeen) {
-                        statusText = `last seen ${u.lastSeen}`;
-                    }
+                if (u.username === currentUser) return;
 
-                    const unreadCount = unreadCounts[u.username] || 0;
-                    
-                    div.innerHTML = `
-                        <img src="${u.avatarUrl}">
-                        <div class="user-info">
-                            <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
-                            <span>${statusText}</span>
-                        </div>
-                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
-                        ${u.isOnline ? '<div class="online-dot" style="margin-left:6px;"></div>' : ''}
-                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" style="margin-left:8px;" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
-                    `;
-                    div.onclick = () => selectTargetUser(u);
-                    container.appendChild(div);
-                }
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <img src="${u.avatarUrl}" class="user-avatar">
+                    <div class="user-info">
+                        <div class="user-name">${u.username}</div>
+                    </div>
+                    <span class="status-dot ${u.isOnline ? 'online' : ''}"></span>
+                `;
+                li.onclick = () => selectUser(u.username, u.avatarUrl, u.isOnline, u.lastSeen);
+                listEl.appendChild(li);
             });
         });
 
-        function removeUser(targetUsername) {
-            if(confirm(`Remove ${targetUsername}?`)) socket.emit('remove-user-by-admin', { targetUsername });
-        }
-
-        socket.on('kicked-by-admin', (msg) => {
-            localStorage.clear();
-            alert(msg);
-            location.reload();
-        });
-
-        function selectTargetUser(userObj) {
-            selectedTargetUser = userObj.username;
-            unreadCounts[selectedTargetUser] = 0;
-            localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-
-            document.getElementById('targetNameText').innerText = userObj.username;
-            document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
-            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen ? `last seen ${userObj.lastSeen}` : 'Offline');
-            document.body.classList.add('mobile-chat-open');
-
-            // Notify server that messages are read (Blue Ticks Trigger)
-            socket.emit('mark-messages-read', { senderName: selectedTargetUser, readerName: myName });
-
-            renderFilteredHistory();
-            socket.emit('request-user-list');
-        }
-
-        socket.on('load-chat-history', (history) => {
-            allHistory = history;
-            if(selectedTargetUser) renderFilteredHistory();
-        });
-
-        socket.on('receive-private-message', (msgObj) => {
-            allHistory.push(msgObj);
-            if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
-                if(selectedTargetUser === msgObj.senderName) {
-                    socket.emit('mark-messages-read', { senderName: selectedTargetUser, readerName: myName });
-                }
-                renderFilteredHistory();
-            } 
+        function selectUser(username, avatar, isOnline, lastSeen) {
+            selectedTargetUser = username;
+            document.getElementById('active-chat-title').innerText = username;
+            document.getElementById('active-user-status').innerText = isOnline ? 'Online' : (lastSeen || 'Offline');
+            document.getElementById('active-avatar').src = avatar;
             
-            if (msgObj.targetName === myName && msgObj.senderName !== selectedTargetUser) {
-                unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
-                localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
-                
-                showInAppNotification(msgObj.senderName, msgObj.message || msgObj.mediaType);
-                const sound = document.getElementById('notifySound');
-                if(sound) sound.play().catch(e => console.log('Audio play blocked'));
-            }
-        });
-
-        socket.on('messages-read-update', (data) => {
-            allHistory.forEach(m => {
-                if(m.senderName === data.readerName || m.targetName === data.readerName) {
-                    m.isRead = true;
-                    m.isDelivered = true;
-                }
-            });
-            renderFilteredHistory();
-        });
-
-        function showInAppNotification(sender, text) {
-            const toast = document.getElementById('inAppNotificationToast');
-            document.getElementById('toastSender').innerText = sender;
-            document.getElementById('toastMessage').innerText = text;
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 4000);
-        }
-
-        socket.on('message-deleted-everyone', (data) => {
-            allHistory = allHistory.filter(m => m.msgId !== data.msgId);
-            renderFilteredHistory();
-        });
-
-        function openDeleteModal(msgObj) {
-            selectedMsgForDelete = msgObj;
-            document.getElementById('deleteModal').style.display = 'flex';
-            document.getElementById('btnDelEveryone').style.display = msgObj.senderName === myName ? 'block' : 'none';
-        }
-
-        function closeDeleteModal() {
-            selectedMsgForDelete = null;
-            document.getElementById('deleteModal').style.display = 'none';
-        }
-
-        function setReplyMessage() {
-            if(selectedMsgForDelete) {
-                activeReplyMsg = selectedMsgForDelete;
-                document.getElementById('replyPreviewBar').style.display = 'flex';
-                document.getElementById('replyPreviewText').innerText = `Replying to: ${selectedMsgForDelete.message || selectedMsgForDelete.mediaType}`;
-            }
-            closeDeleteModal();
-        }
-
-        function cancelReply() {
-            activeReplyMsg = null;
-            document.getElementById('replyPreviewBar').style.display = 'none';
-        }
-
-        function execDeleteMe() {
-            if(selectedMsgForDelete) {
-                deletedForMeMsgIds.push(selectedMsgForDelete.msgId);
-                localStorage.setItem('deletedForMe', JSON.stringify(deletedForMeMsgIds));
-                renderFilteredHistory();
-            }
-            closeDeleteModal();
-        }
-
-        function execDeleteEveryone() {
-            if(selectedMsgForDelete && selectedMsgForDelete.senderName === myName) {
-                socket.emit('delete-message-everyone', { msgId: selectedMsgForDelete.msgId });
-            }
-            closeDeleteModal();
-        }
-
-        /* --- MODDED TICK SYSTEM RENDER --- */
-        function renderFilteredHistory() {
-            const win = document.getElementById('chatWin');
-            win.innerHTML = '';
+            document.body.classList.add('in-chat');
+            loadMessagesForSelectedUser();
             
-            const conversation = allHistory.filter(m => 
-                ((m.senderName === myName && m.targetName === selectedTargetUser) ||
-                (m.senderName === selectedTargetUser && m.targetName === myName)) &&
-                !deletedForMeMsgIds.includes(m.msgId)
-            );
-
-            conversation.forEach(msg => {
-                if(msg.mediaType === 'call_log') {
-                    const div = document.createElement('div');
-                    div.className = 'call-log-bubble';
-                    div.innerHTML = `📞 ${msg.message} • ${msg.time}`;
-                    div.onclick = () => openDeleteModal(msg);
-                    win.appendChild(div);
-                    return;
-                }
-
-                const isMe = msg.senderName === myName;
-                const div = document.createElement('div');
-                div.className = `msg ${isMe ? 'sent' : 'recv'}`;
-                div.onclick = () => openDeleteModal(msg);
-                
-                let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
-                if(msg.replyTo) html += `<div class="reply-quote">${msg.replyTo}</div>`;
-
-                if(msg.isViewOnce) {
-                    if (msg.isOpened) {
-                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">1️⃣ Opened</div>`;
-                    } else {
-                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">1️⃣ Photo / Media (View Once)</div>`;
-                    }
-                } else {
-                    if(msg.mediaType === 'text') html += msg.message;
-                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
-                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
-                    else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
-                }
-
-                // Ticks logic: Blue = Read, Double Grey = Delivered/Online, Single = Sent
-                let ticksHtml = '';
-                if (isMe) {
-                    if (msg.isRead) {
-                        ticksHtml = '<span class="blue-ticks">✓✓</span>';
-                    } else if (msg.isDelivered) {
-                        ticksHtml = '<span class="grey-ticks">✓✓</span>';
-                    } else {
-                        ticksHtml = '<span class="grey-ticks">✓</span>';
-                    }
-                }
-                
-                html += `<div class="time-ticks"><span>${msg.time}</span> ${ticksHtml}</div>`;
-                div.innerHTML = html;
-                win.appendChild(div);
-            });
-
-            win.scrollTop = win.scrollHeight;
+            // Mark unread messages as read
+            socket.emit('mark-read', { senderName: selectedTargetUser, receiverName: currentUser });
         }
 
-        function openViewOnceMsg(msgId, url, type) {
-            const win = window.open("", "_blank");
-            if(type === 'image') win.document.write(`<img src="${url}" style="max-width:100%;">`);
-            else if(type === 'video') win.document.write(`<video src="${url}" controls style="max-width:100%;"></video>`);
-            
-            socket.emit('mark-viewonce-opened', { msgId });
-            const msgObj = allHistory.find(m => m.msgId === msgId);
-            if(msgObj) msgObj.isOpened = true;
-            renderFilteredHistory();
+        function goBackToUserList() {
+            document.body.classList.remove('in-chat');
         }
 
-        socket.on('viewonce-opened-update', (data) => {
-            const msgObj = allHistory.find(m => m.msgId === data.msgId);
-            if(msgObj) msgObj.isOpened = true;
-            renderFilteredHistory();
+        function handleTyping() {
+            if (!selectedTargetUser) return;
+            socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
+            }, 1500);
+        }
+
+        socket.on('user-typing-status', (data) => {
+            if (data.fromUser === selectedTargetUser) {
+                const statusEl = document.getElementById('active-user-status');
+                if (data.isTyping) statusEl.innerText = "typing...";
+                else statusEl.innerText = "Online";
+            }
         });
 
         function toggleViewOnce() {
-            isViewOnceActive = !isViewOnceActive;
-            document.getElementById('viewOnceBtn').classList.toggle('active-toggle', isViewOnceActive);
+            isViewOnce = !isViewOnce;
+            document.getElementById('view-once-btn').classList.toggle('active', isViewOnce);
         }
 
-        function handleInputChange() {
-            const txt = document.getElementById('msgInput').value.trim();
-            const sendBtn = document.getElementById('sendBtn');
-            const voiceBtn = document.getElementById('voiceBtn');
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const message = input.value.trim();
 
-            if (txt.length > 0) {
-                sendBtn.style.display = 'flex';
-                voiceBtn.style.display = 'none';
-            } else {
-                sendBtn.style.display = 'none';
-                voiceBtn.style.display = 'flex';
-            }
+            if ((!message && !currentSelectedMedia) || !selectedTargetUser) return;
 
-            if(selectedTargetUser) {
-                socket.emit('typing', { targetName: selectedTargetUser, isTyping: true });
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => {
-                    socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
-                }, 2000);
-            }
-        }
-
-        function toggleEmojiBox() {
-            const box = document.getElementById('emojiBox');
-            box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
-        }
-
-        function addEmoji(emoji) {
-            const input = document.getElementById('msgInput');
-            input.value += emoji;
-            handleInputChange();
-            document.getElementById('emojiBox').style.display = 'none';
-        }
-
-        /* --- AI SMART REPLIES FEATURE --- */
-        function toggleAISuggestions() {
-            const bar = document.getElementById('aiSuggestionsBar');
-            if (bar.style.display === 'flex') {
-                bar.style.display = 'none';
-                return;
-            }
-
-            // Generate AI suggestions based on last incoming message
-            const lastMsg = allHistory.filter(m => m.senderName === selectedTargetUser).pop();
-            const lastText = lastMsg ? (lastMsg.message || '').toLowerCase() : '';
-
-            let replies = ["Ha thik h 👍", "Kya hua? 🤔", "Oky bro! 🔥"];
-            if (lastText.includes('hi') || lastText.includes('hello')) replies = ["Hello! 👋", "Hey, kaise ho?", "Haan bolo!"];
-            else if (lastText.includes('kaha') || lastText.includes('where')) replies = ["Ghar pe hu 🏠", "Bahut jald milte h!", "Bahar hu abhi 🚗"];
-            else if (lastText.includes('call')) replies = ["Haan, call karo 📞", "Abhi busy hu baad me karna ⏳", "Ok 2 min me karta hu"];
-
-            bar.innerHTML = '';
-            replies.forEach(r => {
-                const chip = document.createElement('div');
-                chip.className = 'ai-chip';
-                chip.innerText = `✨ ${r}`;
-                chip.onclick = () => {
-                    document.getElementById('msgInput').value = r;
-                    handleInputChange();
-                    bar.style.display = 'none';
-                };
-                bar.appendChild(chip);
-            });
-            bar.style.display = 'flex';
-        }
-
-        function sendText() {
-            const txt = document.getElementById('msgInput').value.trim();
-            if(!txt || !selectedTargetUser) return;
-            
-            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            socket.emit('send-private-message', {
-                senderName: myName,
+            const msgData = {
+                senderName: currentUser,
                 targetName: selectedTargetUser,
-                message: txt,
-                mediaType: 'text',
-                isViewOnce: isViewOnceActive,
-                replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null,
-                clientTime: clientTime
+                message: message,
+                mediaUrl: currentSelectedMedia,
+                mediaType: mediaType,
+                isViewOnce: isViewOnce
+            };
+
+            socket.emit('send-private-message', msgData);
+
+            input.value = '';
+            currentSelectedMedia = null;
+            mediaType = null;
+            document.getElementById('emoji-picker').style.display = 'none';
+            if (isViewOnce) toggleViewOnce();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        socket.on('receive-private-message', (msg) => {
+            saveChatsToLocal(msg);
+            if (
+                (msg.senderName === currentUser && msg.targetName === selectedTargetUser) ||
+                (msg.senderName === selectedTargetUser && msg.targetName === currentUser)
+            ) {
+                renderSingleMessage(msg);
+                if (msg.targetName === currentUser) {
+                    socket.emit('mark-read', { senderName: msg.senderName, receiverName: currentUser });
+                }
+            }
+        });
+
+        socket.on('messages-status-update', ({ msgIds, status }) => {
+            localChatHistory.forEach(m => {
+                if (msgIds.includes(m.msgId)) m.status = status;
             });
+            localStorage.setItem('chat_history', JSON.stringify(localChatHistory));
+            if (selectedTargetUser) loadMessagesForSelectedUser();
+        });
+
+        function loadMessagesForSelectedUser() {
+            const box = document.getElementById('messages-container');
+            box.innerHTML = '';
             
-            document.getElementById('msgInput').value = '';
-            if (isViewOnceActive) toggleViewOnce();
-            cancelReply();
-            handleInputChange();
-            socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
+            const filtered = localChatHistory.filter(m => 
+                (m.senderName === currentUser && m.targetName === selectedTargetUser) ||
+                (m.senderName === selectedTargetUser && m.targetName === currentUser)
+            );
+
+            filtered.forEach(renderSingleMessage);
+            box.scrollTop = box.scrollHeight;
         }
 
-        function sendMedia(input) {
-            if(input.files && input.files[0] && selectedTargetUser) {
-                const file = input.files[0];
-                const isVideo = file.type.startsWith('video/');
-                const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    socket.emit('send-private-message', {
-                        senderName: myName,
-                        targetName: selectedTargetUser,
-                        mediaType: isVideo ? 'video' : 'image',
-                        mediaUrl: e.target.result,
-                        isViewOnce: isViewOnceActive,
-                        clientTime: clientTime
-                    });
-                    if (isViewOnceActive) toggleViewOnce();
-                };
-                reader.readAsDataURL(file);
+        function renderSingleMessage(msg) {
+            const box = document.getElementById('messages-container');
+            let div = document.getElementById(`msg-${msg.msgId}`);
+            if (!div) {
+                div = document.createElement('div');
+                div.id = `msg-${msg.msgId}`;
+                box.appendChild(div);
             }
+
+            const isMe = msg.senderName === currentUser;
+            div.className = `message ${isMe ? 'my-msg' : ''}`;
+
+            let contentHTML = `<div class="msg-sender">${msg.senderName}</div>`;
+
+            if (msg.mediaUrl) {
+                if (msg.isViewOnce) {
+                    contentHTML += `
+                        <div class="view-once-badge" onclick="openViewOnceMedia('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">
+                            <i class="fa-solid fa-circle-notch"></i> View Once ${msg.mediaType || 'Media'}
+                        </div>`;
+                } else {
+                    if (msg.mediaType === 'video') {
+                        contentHTML += `<video src="${msg.mediaUrl}" class="msg-media" controls></video>`;
+                    } else if (msg.mediaType === 'audio') {
+                        contentHTML += `<audio src="${msg.mediaUrl}" controls style="max-width:200px; margin-top:5px;"></audio>`;
+                    } else {
+                        contentHTML += `<img src="${msg.mediaUrl}" class="msg-media" onclick="openMediaModal('${msg.mediaUrl}', 'image')">`;
+                    }
+                }
+            }
+
+            if (msg.message) {
+                contentHTML += `<div>${msg.message}</div>`;
+            }
+
+            // Ticks status: sent (single grey), delivered (double grey), read (double blue)
+            let tickHTML = '';
+            if (isMe) {
+                if (msg.status === 'read') {
+                    tickHTML = `<i class="fa-solid fa-check-double tick-icon read"></i>`;
+                } else if (msg.status === 'delivered') {
+                    tickHTML = `<i class="fa-solid fa-check-double tick-icon delivered"></i>`;
+                } else {
+                    tickHTML = `<i class="fa-solid fa-check tick-icon"></i>`;
+                }
+            }
+
+            contentHTML += `<div class="msg-time">${msg.time || ''} ${tickHTML}</div>`;
+            div.innerHTML = contentHTML;
+            box.scrollTop = box.scrollHeight;
         }
 
-        /* --- DIRECT CAMERA PANEL SYSTEM --- */
-        async function openDirectCamera() {
-            if(!selectedTargetUser) return alert('Select user first!');
-            document.getElementById('cameraModal').style.display = 'flex';
+        // Camera Logic
+        let cameraStream = null;
+        async function openCamera() {
             try {
-                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false });
-                document.getElementById('camPreview').srcObject = camStream;
-            } catch (e) {
-                alert('Camera Access Denied!');
-                closeCamera();
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('camera-video').srcObject = cameraStream;
+                document.getElementById('camera-modal').style.display = 'flex';
+            } catch(e) {
+                alert('Camera Access Denied/Unavailable!');
             }
+        }
+
+        function captureCameraPhoto() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            currentSelectedMedia = canvas.toDataURL('image/jpeg', 0.8);
+            mediaType = 'image';
+            closeCamera();
+            sendMessage();
         }
 
         function closeCamera() {
-            if(camStream) camStream.getTracks().forEach(t => t.stop());
-            document.getElementById('cameraModal').style.display = 'none';
+            if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+            document.getElementById('camera-modal').style.display = 'none';
         }
 
-        async function switchDirectCamera() {
-            camFacing = camFacing === 'user' ? 'environment' : 'user';
-            closeCamera();
-            openDirectCamera();
-        }
-
-        function captureDirectPhoto() {
-            const vid = document.getElementById('camPreview');
-            const canvas = document.createElement('canvas');
-            canvas.width = vid.videoWidth || 640;
-            canvas.height = vid.videoHeight || 480;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            socket.emit('send-private-message', {
-                senderName: myName,
-                targetName: selectedTargetUser,
-                mediaType: 'image',
-                mediaUrl: dataUrl,
-                isViewOnce: isViewOnceActive,
-                clientTime: clientTime
-            });
-
-            if (isViewOnceActive) toggleViewOnce();
-            closeCamera();
-        }
-
-        async function toggleRecordAudio() {
-            if(!selectedTargetUser) return alert('Select user first!');
-            const btn = document.getElementById('voiceBtn');
-            
-            if(!isRecording) {
+        // Voice Recorder Logic
+        async function toggleVoiceRecording() {
+            const btn = document.getElementById('voice-record-btn');
+            if (!isRecordingAudio) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
-                        const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
                         const reader = new FileReader();
-                        reader.onload = function(e) {
-                            socket.emit('send-private-message', {
-                                senderName: myName,
-                                targetName: selectedTargetUser,
-                                mediaType: 'audio',
-                                mediaUrl: e.target.result,
-                                isViewOnce: isViewOnceActive,
-                                clientTime: clientTime
-                            });
-                            if (isViewOnceActive) toggleViewOnce();
+                        reader.onloadend = () => {
+                            currentSelectedMedia = reader.result;
+                            mediaType = 'audio';
+                            sendMessage();
                         };
-                        reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+                        reader.readAsDataURL(blob);
                     };
                     mediaRecorder.start();
-                    isRecording = true;
-                    btn.style.color = 'red';
-                } catch(err) {
+                    isRecordingAudio = true;
+                    btn.classList.add('active');
+                } catch(e) {
                     alert('Microphone Access Denied!');
                 }
             } else {
                 mediaRecorder.stop();
-                isRecording = false;
-                btn.style.color = 'var(--text-secondary)';
+                isRecordingAudio = false;
+                btn.classList.remove('active');
             }
         }
 
-        socket.on('user-typing-status', (data) => {
-            if(selectedTargetUser === data.fromUser) {
-                const statusElem = document.getElementById('targetStatusText');
-                if (data.isTyping) {
-                    statusElem.innerText = 'typing...';
-                    statusElem.style.color = 'var(--accent-green)';
-                } else {
-                    statusElem.innerText = 'Online';
-                    statusElem.style.color = 'var(--text-secondary)';
-                }
-            }
+        // File Attachment
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            mediaType = file.type.startsWith('video') ? 'video' : 'image';
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                currentSelectedMedia = evt.target.result;
+                sendMessage();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Smart AI Auto-Reply Suggestions
+        function triggerAISuggestions() {
+            const bar = document.getElementById('ai-suggestion-bar');
+            bar.style.display = bar.style.display === 'flex' ? 'none' : 'flex';
+            bar.innerHTML = `
+                <span class="ai-chip" onclick="applyAISuggestion('हाहा, ठीक है!')">हाहा, ठीक है!</span>
+                <span class="ai-chip" onclick="applyAISuggestion('मैं अभी थोड़ा व्यस्त हूँ, बाद में बात करते हैं।')">व्यस्त हूँ</span>
+                <span class="ai-chip" onclick="applyAISuggestion('ज़रूर, मुझे यह पसंद आया!')">पसंद आया</span>
+            `;
+        }
+
+        function applyAISuggestion(text) {
+            document.getElementById('msg-input').value = text;
+            document.getElementById('ai-suggestion-bar').style.display = 'none';
+        }
+
+        // Lightbox
+        function openMediaModal(url, type) {
+            const container = document.getElementById('media-preview-container');
+            if (type === 'video') container.innerHTML = `<video src="${url}" controls autoplay></video>`;
+            else container.innerHTML = `<img src="${url}">`;
+            
+            document.getElementById('download-media-btn').href = url;
+            document.getElementById('image-modal').style.display = 'flex';
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').style.display = 'none';
+        }
+
+        function openViewOnceMedia(msgId, url, type) {
+            openMediaModal(url, type);
+            localChatHistory = localChatHistory.filter(m => m.msgId !== msgId);
+            localStorage.setItem('chat_history', JSON.stringify(localChatHistory));
+        }
+
+        // Whiteboard Logic
+        const canvas = document.getElementById('paint-board');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false, lastX = 0, lastY = 0;
+
+        function openWhiteboard() {
+            if (!selectedTargetUser) return alert('Select a user first!');
+            document.getElementById('whiteboard-modal').style.display = 'flex';
+        }
+
+        function closeWhiteboard() {
+            document.getElementById('whiteboard-modal').style.display = 'none';
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const p = getPos(e);
+            const color = document.getElementById('wb-color').value;
+            const size = document.getElementById('wb-size').value;
+            
+            ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y);
+            ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.stroke();
+            
+            socket.emit('wb-draw-data', { targetName: selectedTargetUser, x0: lastX, y0: lastY, x1: p.x, y1: p.y, color, size });
+            lastX = p.x; lastY = p.y;
+        });
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+
+        socket.on('wb-draw-receive', (d) => {
+            ctx.beginPath(); ctx.moveTo(d.x0, d.y0); ctx.lineTo(d.x1, d.y1);
+            ctx.strokeStyle = d.color; ctx.lineWidth = d.size; ctx.lineCap = 'round'; ctx.stroke();
         });
 
-        function closeMobileChat() { document.body.classList.remove('mobile-chat-open'); }
-
-        /* --- WHITEBOARD ENGINE --- */
-        function initWhiteboardEngine() {
-            wbCanvas = document.getElementById('liveWhiteboard');
-            wbCtx = wbCanvas.getContext('2d');
-
-            resizeWbCanvas();
-            window.addEventListener('resize', resizeWbCanvas);
-
-            wbCanvas.addEventListener('mousedown', startWbDraw);
-            wbCanvas.addEventListener('mousemove', drawWbStroke);
-            wbCanvas.addEventListener('mouseup', stopWbDraw);
-            wbCanvas.addEventListener('mouseleave', stopWbDraw);
-
-            wbCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startWbDraw(e.touches[0]); }, { passive: false });
-            wbCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawWbStroke(e.touches[0]); }, { passive: false });
-            wbCanvas.addEventListener('touchend', (e) => { e.preventDefault(); stopWbDraw(); }, { passive: false });
+        function clearCanvas(emit) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (emit && selectedTargetUser) socket.emit('wb-clear-data', { targetName: selectedTargetUser });
         }
-
-        function resizeWbCanvas() {
-            if(!wbCanvas) return;
-            const container = document.getElementById('wbCanvasContainer');
-            const oldData = wbCanvas.toDataURL();
-
-            wbCanvas.width = container.clientWidth;
-            wbCanvas.height = container.clientHeight;
-
-            const img = new Image();
-            img.src = oldData;
-            img.onload = () => { wbCtx.drawImage(img, 0, 0); };
-        }
-
-        function openWhiteboardModal() {
-            if(!selectedTargetUser) return alert('Select a user to collaborate on Whiteboard!');
-            document.getElementById('whiteboardModal').style.display = 'flex';
-            document.getElementById('wbPartnerBadge').innerText = `with ${selectedTargetUser}`;
-            setTimeout(resizeWbCanvas, 100);
-        }
-
-        function closeWhiteboardModal() {
-            document.getElementById('whiteboardModal').style.display = 'none';
-        }
-
-        function setWbTool(mode) {
-            wbMode = mode;
-            document.getElementById('wbPenBtn').classList.toggle('active', mode === 'pen');
-            document.getElementById('wbEraserBtn').classList.toggle('active', mode === 'eraser');
-        }
-
-        function startWbDraw(e) {
-            isDrawing = true;
-            const rect = wbCanvas.getBoundingClientRect();
-            lastX = (e.clientX || e.pageX) - rect.left;
-            lastY = (e.clientY || e.pageY) - rect.top;
-        }
-
-        function drawWbStroke(e) {
-            if(!isDrawing || !selectedTargetUser) return;
-            const rect = wbCanvas.getBoundingClientRect();
-            const currentX = (e.clientX || e.pageX) - rect.left;
-            const currentY = (e.clientY || e.pageY) - rect.top;
-
-            const color = document.getElementById('wbColorPicker').value;
-            const size = document.getElementById('wbSizePicker').value;
-
-            wbCtx.lineWidth = size;
-            wbCtx.lineCap = 'round';
-            wbCtx.lineJoin = 'round';
-
-            if(wbMode === 'eraser') {
-                wbCtx.strokeStyle = '#111b21';
-                wbCtx.lineWidth = size * 4;
-            } else {
-                wbCtx.strokeStyle = color;
-            }
-
-            wbCtx.beginPath();
-            wbCtx.moveTo(lastX, lastY);
-            wbCtx.lineTo(currentX, currentY);
-            wbCtx.stroke();
-
-            socket.emit('wb-draw-data', {
-                targetName: selectedTargetUser,
-                x0: lastX / wbCanvas.width,
-                y0: lastY / wbCanvas.height,
-                x1: currentX / wbCanvas.width,
-                y1: currentY / wbCanvas.height,
-                color: wbMode === 'eraser' ? '#111b21' : color,
-                size: wbMode === 'eraser' ? size * 4 : Number(size)
-            });
-
-            lastX = currentX;
-            lastY = currentY;
-        }
-
-        function stopWbDraw() { isDrawing = false; }
-
-        function clearWhiteboardLocal() {
-            wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-            if(selectedTargetUser) {
-                socket.emit('wb-clear-data', { targetName: selectedTargetUser });
-            }
-        }
-
-        socket.on('wb-draw-receive', (data) => {
-            if(selectedTargetUser === data.senderName && wbCanvas) {
-                wbCtx.lineWidth = data.size;
-                wbCtx.lineCap = 'round';
-                wbCtx.lineJoin = 'round';
-                wbCtx.strokeStyle = data.color;
-
-                wbCtx.beginPath();
-                wbCtx.moveTo(data.x0 * wbCanvas.width, data.y0 * wbCanvas.height);
-                wbCtx.lineTo(data.x1 * wbCanvas.width, data.y1 * wbCanvas.height);
-                wbCtx.stroke();
-            }
-        });
-
-        socket.on('wb-clear-receive', (data) => {
-            if(selectedTargetUser === data.senderName && wbCanvas) {
-                wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-            }
-        });
-
-        /* --- ENHANCED WEBRTC CALL ENGINE (CLEAR VOICE FIX) --- */
-        async function getHDMediaStream(video, facing) {
-            const constraints = {
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
-            };
-            return await navigator.mediaDevices.getUserMedia(constraints);
-        }
-
-        function initDraggablePip() {
-            const pip = document.getElementById('pipVideo');
-            let isDragging = false, startX, startY, initialX, initialY;
-            let hasMoved = false;
-
-            const onStart = (e) => {
-                isDragging = true;
-                hasMoved = false;
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                startX = clientX;
-                startY = clientY;
-                const rect = pip.getBoundingClientRect();
-                initialX = rect.left;
-                initialY = rect.top;
-            };
-
-            const onMove = (e) => {
-                if(!isDragging) return;
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                const dx = clientX - startX;
-                const dy = clientY - startY;
-
-                if(Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved = true;
-
-                pip.style.left = `${initialX + dx}px`;
-                pip.style.top = `${initialY + dy}px`;
-                pip.style.right = 'auto';
-            };
-
-            const onEnd = () => {
-                if(!hasMoved) {
-                    swapVideoViews();
-                }
-                isDragging = false;
-            };
-
-            pip.addEventListener('mousedown', onStart);
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onEnd);
-
-            pip.addEventListener('touchstart', onStart, {passive: true});
-            document.addEventListener('touchmove', onMove, {passive: true});
-            document.addEventListener('touchend', onEnd);
-        }
-
-        async function startCall(videoMode) {
-            if(!selectedTargetUser) return alert('Select user to call!');
-            isVideoCall = videoMode;
-
-            socket.emit('send-private-message', {
-                senderName: myName,
-                targetName: selectedTargetUser,
-                message: isVideoCall ? 'Outgoing Video Call' : 'Outgoing Voice Call',
-                mediaType: 'call_log',
-                clientTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
-            });
-
-            document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callTargetName').innerText = selectedTargetUser;
-            document.getElementById('callStatusText').innerText = 'Calling...';
-            document.getElementById('incomingSlideCard').style.display = 'none';
-            document.getElementById('activeCallControls').style.display = 'flex';
-
-            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            assignStreamViews();
-
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            peerConnection.ontrack = e => {
-                remoteStream = e.streams[0];
-                assignStreamViews();
-            };
-
-            peerConnection.onicecandidate = e => {
-                if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
-            };
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            socket.emit('call-user', { targetName: selectedTargetUser, offer, isVideo: isVideoCall });
-        }
-
-        socket.on('incoming-call', async (data) => {
-            incomingOffer = data.offer;
-            isVideoCall = data.isVideo;
-            selectedTargetUser = data.fromUser;
-            
-            document.getElementById('callModal').style.display = 'flex';
-            document.getElementById('callTargetName').innerText = data.fromUser;
-            document.getElementById('callStatusText').innerText = isVideoCall ? 'Incoming Video Call...' : 'Incoming Voice Call...';
-            
-            document.getElementById('incomingCallerName').innerText = data.fromUser;
-            document.getElementById('incomingCallType').innerText = isVideoCall ? 'Incoming Video Call' : 'Incoming Voice Call';
-            document.getElementById('incomingSlideCard').style.display = 'block';
-            document.getElementById('activeCallControls').style.display = 'none';
-        });
-
-        async function acceptCall() {
-            document.getElementById('incomingSlideCard').style.display = 'none';
-            document.getElementById('activeCallControls').style.display = 'flex';
-            document.getElementById('callStatusText').innerText = 'Connected';
-
-            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            peerConnection.ontrack = e => {
-                remoteStream = e.streams[0];
-                assignStreamViews();
-            };
-
-            peerConnection.onicecandidate = e => {
-                if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
-            };
-
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            socket.emit('answer-call', { targetName: selectedTargetUser, answer });
-        }
-
-        socket.on('call-accepted', async (data) => {
-            document.getElementById('callStatusText').innerText = 'Connected';
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-        });
-
-        socket.on('ice-candidate', async (data) => {
-            if(peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-        });
-
-        socket.on('call-ended', () => endCallUI());
-
-        function assignStreamViews() {
-            const mainVid = document.getElementById('mainVideo');
-            const pipVid = document.getElementById('pipVideo');
-
-            const isFrontCamera = currentFacingMode === 'user';
-            const dynamicTransform = isFrontCamera ? 'scaleX(-1)' : 'none';
-
-            if (isMainVideoRemote) {
-                if (remoteStream) {
-                    mainVid.srcObject = remoteStream;
-                    mainVid.style.transform = 'none';
-                }
-                if (localStream) {
-                    pipVid.srcObject = localStream;
-                    pipVid.style.transform = dynamicTransform;
-                }
-            } else {
-                if (localStream) {
-                    mainVid.srcObject = localStream;
-                    mainVid.style.transform = dynamicTransform;
-                }
-                if (remoteStream) {
-                    pipVid.srcObject = remoteStream;
-                    pipVid.style.transform = 'none';
-                }
-            }
-        }
-
-        function swapVideoViews() {
-            isMainVideoRemote = !isMainVideoRemote;
-            assignStreamViews();
-        }
-
-        async function switchCamera() {
-            if (!isVideoCall || !localStream) return;
-            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-            
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = await getHDMediaStream(true, currentFacingMode);
-            
-            const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-            if (sender) sender.replaceTrack(videoTrack);
-            
-            assignStreamViews();
-        }
-
-        async function toggleScreenShare() {
-            if (!peerConnection) return;
-            if (!isScreenSharing) {
-                try {
-                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    const screenTrack = screenStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-                    if (sender) sender.replaceTrack(screenTrack);
-                    
-                    document.getElementById('mainVideo').srcObject = screenStream;
-                    document.getElementById('mainVideo').style.transform = 'none';
-                    isScreenSharing = true;
-
-                    screenTrack.onended = () => toggleScreenShare();
-                } catch(err) {
-                    console.log('Screen sharing cancelled');
-                }
-            } else {
-                const videoTrack = localStream.getVideoTracks()[0];
-                const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-                if (sender) sender.replaceTrack(videoTrack);
-                assignStreamViews();
-                isScreenSharing = false;
-            }
-        }
-
-        function toggleMuteMic() {
-            if (localStream) {
-                isMicMuted = !isMicMuted;
-                localStream.getAudioTracks()[0].enabled = !isMicMuted;
-                document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙';
-            }
-        }
-
-        function endCall() {
-            if(selectedTargetUser) socket.emit('end-call', { targetName: selectedTargetUser });
-            endCallUI();
-        }
-
-        function endCallUI() {
-            if(peerConnection) peerConnection.close();
-            if(localStream) localStream.getTracks().forEach(track => track.stop());
-            peerConnection = null;
-            localStream = null;
-            remoteStream = null;
-            document.getElementById('callModal').style.display = 'none';
-        }
+        socket.on('wb-clear-receive', () => clearCanvas(false));
     </script>
 </body>
 </html>
