@@ -121,7 +121,6 @@
             background: rgba(11,20,26,0.96); z-index: 9500; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
         }
 
-        /* DP Viewer Modal */
         #dpViewerModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(0,0,0,0.9); z-index: 9999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
@@ -198,20 +197,12 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* OPTIMIZED VIDEO CALL STYLES */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        
-        /* Main Remote Video: Always Unmirrored (Real Orientation) */
-        #mainVideo { 
-            width: 100%; height: 100%; object-fit: cover; background: #111; 
-            transform: none !important; 
-        }
-
-        /* PIP Local Video: Dynamic Mirroring based on camera facing */
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transform: none !important; }
         #pipVideo {
             position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
@@ -281,7 +272,6 @@
         </div>
     </div>
 
-    <!-- DP Fullscreen Viewer Modal -->
     <div id="dpViewerModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeDpViewer()">← Back</button>
@@ -482,7 +472,6 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
-        // WebRTC Variables
         let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
         let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
@@ -665,6 +654,7 @@
             socket.emit('request-user-list');
         }
 
+        // सर्वर से डेटाबेस की पुरानी परमानेंट चैट हिस्ट्री लोड होना
         socket.on('load-chat-history', (history) => {
             allHistory = history;
             if(selectedTargetUser) renderFilteredHistory();
@@ -685,7 +675,7 @@
                 
                 showInAppNotification(msgObj.senderName, msgObj.message || msgObj.mediaType);
                 const sound = document.getElementById('notifySound');
-                if(sound) sound.play().catch(e => console.log('Audio play blocked'));
+                if(sound) sound.play().catch(e => {});
             }
         });
 
@@ -1208,22 +1198,10 @@
             }
         });
 
-        // Optimized Audio/Video Stream with Data Saving and Noise Cancellation
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true,
-                    sampleRate: 48000,
-                    channelCount: 1
-                },
-                video: video ? { 
-                    width: { ideal: 1280, max: 1280 }, 
-                    height: { ideal: 720, max: 720 }, 
-                    frameRate: { ideal: 24, max: 30 },
-                    facingMode: facing 
-                } : false
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 },
+                video: video ? { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 24, max: 30 }, facingMode: facing } : false
             });
         }
 
