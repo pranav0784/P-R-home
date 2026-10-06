@@ -1,48 +1,41 @@
 const express = require('express');
-const http = require('http');
+const http = http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const admin = require('firebase-admin');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
-// 1. Firebase Admin Initialisation (Render Secret / Local Support)
-let serviceAccount;
-try {
-    serviceAccount = require('/etc/secrets/serviceAccountKey.json');
-} catch (e) {
-    try {
-        serviceAccount = require('./serviceAccountKey.json');
-    } catch (err) {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-            try {
-                serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            } catch (pErr) {
-                console.log("Error parsing FIREBASE_SERVICE_ACCOUNT env var.");
-            }
-        }
-        if (!serviceAccount) {
-            console.log("Firebase key file/env not found. Running with in-memory mode.");
-        }
-    }
+// Firebase Initialization
+let serviceAccount = null;
+const secretPath = '/etc/secrets/serviceAccountKey.json';
+const localPath = path.join(__dirname, 'serviceAccountKey.json');
+
+if (fs.existsSync(secretPath)) {
+    try { serviceAccount = require(secretPath); } catch (e) {}
+} else if (fs.existsSync(localPath)) {
+    try { serviceAccount = require(localPath); } catch (e) {}
+} else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try { serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); } catch (e) {}
 }
 
 if (serviceAccount) {
     try {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+        if (!admin.apps.length) {
+            admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        }
         console.log("🔥 Firebase Admin Initialized Successfully!");
     } catch (fErr) {
-        console.error("Firebase Initialization Error:", fErr);
+        console.error("Firebase Init Error:", fErr);
     }
 }
 
 const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB
+    maxHttpBufferSize: 1e8,
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -54,8 +47,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const activeSockets = {}; // socket.id -> username
-const userDetails = {};   // username -> { username, avatarUrl, isAdmin, isApproved, lastSeen }
+const activeSockets = {}; 
+const userDetails = {};   
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
@@ -75,11 +68,10 @@ async function syncUsersFromDB() {
     try {
         const snapshot = await db.collection('users').get();
         snapshot.forEach(doc => {
-            const data = doc.data();
-            userDetails[doc.id] = data;
+            userDetails[doc.id] = doc.data();
         });
     } catch (e) {
-        console.error("Error fetching users DB:", e);
+        console.error("Error fetching users:", e);
     }
 }
 
@@ -103,7 +95,7 @@ async function getChatHistoryFromDB() {
         });
         return history;
     } catch (e) {
-        console.error("Error fetching chats:", e);
+        console.error("Error fetching chats from DB:", e);
         return [];
     }
 }
@@ -143,7 +135,11 @@ io.on('connection', (socket) => {
         userDetails[username] = userObj;
 
         if (db) {
-            await db.collection('users').doc(username).set(userObj, { merge: true });
+            try {
+                await db.collection('users').doc(username).set(userObj, { merge: true });
+            } catch (err) {
+                console.error("Error saving user:", err);
+            }
         }
 
         activeSockets[socket.id] = username;
@@ -186,15 +182,13 @@ io.on('connection', (socket) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && userDetails[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
-            
             delete userDetails[userToKick];
             if (db) {
-                await db.collection('users').doc(userToKick).delete();
+                try { await db.collection('users').doc(userToKick).delete(); } catch (e) {}
             }
-            
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है। अब दोबारा जुड़ने के लिए नया कोड दर्ज करें।');
+                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है।');
             }
             await broadcastUserList();
         }
@@ -205,7 +199,7 @@ io.on('connection', (socket) => {
             userDetails[data.username].avatarUrl = data.newAvatarUrl;
         }
         if (db) {
-            await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
+            try { await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl }); } catch (e) {}
         }
         await broadcastUserList();
     });
@@ -223,12 +217,18 @@ io.on('connection', (socket) => {
             replyTo: data.replyTo || null,
             isViewOnce: !!data.isViewOnce,
             isOpened: false,
+            isRead: false,
+            isDelivered: false,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
             timestamp: Date.now()
         };
 
         if (db) {
-            await db.collection('chats').doc(msgId).set(msgObject);
+            try {
+                await db.collection('chats').doc(msgId).set(msgObject);
+            } catch (err) {
+                console.error("Error saving message in DB:", err);
+            }
         }
 
         const clientPayload = { msgId, ...msgObject };
@@ -241,30 +241,31 @@ io.on('connection', (socket) => {
 
     socket.on('mark-messages-read', async (data) => {
         if (db) {
-            const snapshot = await db.collection('chats')
-                .where('senderName', '==', data.senderName)
-                .where('targetName', '==', data.readerName)
-                .get();
-            
-            const batch = db.batch();
-            snapshot.docs.forEach(doc => {
-                batch.update(doc.ref, { isRead: true, isDelivered: true });
-            });
-            await batch.commit();
+            try {
+                const snapshot = await db.collection('chats')
+                    .where('senderName', '==', data.senderName)
+                    .where('targetName', '==', data.readerName)
+                    .get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, { isRead: true, isDelivered: true });
+                });
+                await batch.commit();
+            } catch (e) {}
         }
         io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
     });
 
     socket.on('mark-viewonce-opened', async (data) => {
         if (db) {
-            await db.collection('chats').doc(data.msgId).update({ isOpened: true });
+            try { await db.collection('chats').doc(data.msgId).update({ isOpened: true }); } catch (e) {}
         }
         io.emit('viewonce-opened-update', { msgId: data.msgId });
     });
 
     socket.on('delete-message-everyone', async (data) => {
         if (db) {
-            await db.collection('chats').doc(data.msgId).delete();
+            try { await db.collection('chats').doc(data.msgId).delete(); } catch (e) {}
         }
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
@@ -327,9 +328,11 @@ io.on('connection', (socket) => {
                 userDetails[username].lastSeen = `last seen today at ${timeStr}`;
             }
             if (db) {
-                await db.collection('users').doc(username).update({
-                    lastSeen: `last seen today at ${timeStr}`
-                });
+                try {
+                    await db.collection('users').doc(username).update({
+                        lastSeen: `last seen today at ${timeStr}`
+                    });
+                } catch (e) {}
             }
             delete activeSockets[socket.id];
             await broadcastUserList();
