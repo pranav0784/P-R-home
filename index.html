@@ -85,13 +85,35 @@
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
-        .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
+        .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        .btn-icon:hover { color: var(--accent-green); }
+        .btn-icon.active-toggle { color: var(--accent-green); background: rgba(0, 168, 132, 0.2); border-radius: 50%; }
 
-        #emojiBox { display: none; position: absolute; bottom: 68px; left: 10px; background: var(--panel-dark); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px; max-width: 300px; flex-wrap: wrap; gap: 10px; z-index: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        #emojiBox span { font-size: 1.5rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
-        #emojiBox span:hover { transform: scale(1.2); }
+        /* --- EXTENDED WHATSAPP-STYLE EMOJI PICKER --- */
+        #emojiBox { 
+            display: none; position: absolute; bottom: 68px; left: 10px; 
+            background: var(--panel-dark); border: 1px solid var(--card-border); 
+            padding: 12px; border-radius: 12px; width: 320px; max-height: 250px; 
+            overflow-y: auto; flex-wrap: wrap; gap: 10px; z-index: 500; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.7); 
+        }
+        #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
+        #emojiBox span:hover { transform: scale(1.3); }
+
+        /* --- AI SMART SUGGESTION BAR --- */
+        #aiSuggestionsBar {
+            display: none; position: absolute; bottom: 68px; left: 50px; right: 50px;
+            background: #182229; border: 1px solid var(--accent-green); padding: 8px 12px;
+            border-radius: 12px; gap: 8px; overflow-x: auto; z-index: 450;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .ai-chip {
+            background: #2a3942; color: #e9edef; padding: 6px 12px; border-radius: 16px;
+            font-size: 0.82rem; cursor: pointer; white-space: nowrap; border: 1px solid var(--card-border);
+        }
+        .ai-chip:hover { background: var(--accent-green); color: #000; }
 
         .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
@@ -99,10 +121,26 @@
         .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; cursor: pointer; }
         .msg audio { max-width: 100%; margin-top: 5px; }
         
+        .view-once-badge {
+            display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4);
+            color: var(--accent-green); border: 1px solid var(--accent-green); padding: 6px 12px;
+            border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin-top: 4px;
+        }
+
         .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
         .time-ticks { font-size: 0.65rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
         .blue-ticks { color: #53bdeb; font-weight: bold; }
+        .grey-ticks { color: var(--text-secondary); font-weight: bold; }
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+
+        /* --- DIRECT CAMERA MODAL --- */
+        #cameraModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
+        }
+        #camPreview { width: 100%; height: 80%; object-fit: cover; }
+        .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
+        .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
 
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
         .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
@@ -219,6 +257,16 @@
         </div>
     </div>
 
+    <!-- Direct In-App Camera Modal -->
+    <div id="cameraModal">
+        <video id="camPreview" autoplay playsinline></video>
+        <div class="cam-controls">
+            <button class="btn-icon" style="color:#fff; font-size:1.8rem;" onclick="closeCamera()">✕</button>
+            <div class="cam-shutter-btn" onclick="captureDirectPhoto()"></div>
+            <button class="btn-icon" style="color:#fff; font-size:1.8rem;" onclick="switchDirectCamera()">🔄</button>
+        </div>
+    </div>
+
     <!-- In-App Notification Toast -->
     <div id="inAppNotificationToast">
         <div style="font-weight:bold; font-size:0.9rem;" id="toastSender">New Message</div>
@@ -323,19 +371,22 @@
                 <button onclick="cancelReply()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">✕</button>
             </div>
 
-            <div id="emojiBox">
-                <span onclick="addEmoji('😀')">😀</span><span onclick="addEmoji('😂')">😂</span>
-                <span onclick="addEmoji('😍')">😍</span><span onclick="addEmoji('❤️')">❤️</span>
-                <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🔥')">🔥</span>
-                <span onclick="addEmoji('🎉')">🎉</span><span onclick="addEmoji('🙏')">🙏</span>
-                <span onclick="addEmoji('😎')">😎</span><span onclick="addEmoji('😭')">😭</span>
-            </div>
+            <!-- EXTENDED EMOJI PICKER -->
+            <div id="emojiBox"></div>
+
+            <!-- AI QUICK REPLY BAR -->
+            <div id="aiSuggestionsBar"></div>
 
             <div class="chat-input" id="chatInputArea">
-                <button class="btn-icon" onclick="toggleEmojiBox()">😊</button>
-                <button class="btn-icon" onclick="document.getElementById('fileInput').click()">📎</button>
+                <button class="btn-icon" onclick="toggleEmojiBox()" title="Emoji Picker">😊</button>
+                <button class="btn-icon" onclick="toggleAISuggestions()" title="AI Smart Reply">✨</button>
+                <button class="btn-icon" onclick="openDirectCamera()" title="Direct Camera">📷</button>
+                <button class="btn-icon" onclick="document.getElementById('fileInput').click()" title="Attach File">📎</button>
                 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
                 
+                <!-- VIEW ONCE TOGGLE BUTTON -->
+                <button class="btn-icon" id="viewOnceBtn" onclick="toggleViewOnce()" title="View Once Mode (1️⃣)">1️⃣</button>
+
                 <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
                 
                 <button class="btn-icon" id="voiceBtn" onclick="toggleRecordAudio()" title="Record Voice Message">🎙</button>
@@ -353,6 +404,7 @@
         let unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
+        let isViewOnceActive = false;
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -361,11 +413,22 @@
         let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
 
+        // Direct Camera Variables
+        let camStream = null, camFacing = 'environment';
+
         // Whiteboard Variables
         let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
         let lastX = 0, lastY = 0;
 
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        const emojiList = [
+            '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','🥹','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗',
+            '😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕',
+            '🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😮‍💨','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨',
+            '😰','😥','😓','🫣','🤗','🫡','🤔','🫣','🤭','🫢','🫡','🤫','🫠','🤥','😶','🫥','😐','😑','😬','🫨',
+            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
+        ];
 
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
@@ -377,9 +440,21 @@
                 if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
                 login(true);
             }
+            populateEmojiBox();
             initWhiteboardEngine();
             initDraggablePip();
         };
+
+        function populateEmojiBox() {
+            const box = document.getElementById('emojiBox');
+            box.innerHTML = '';
+            emojiList.forEach(e => {
+                const span = document.createElement('span');
+                span.innerText = e;
+                span.onclick = () => addEmoji(e);
+                box.appendChild(span);
+            });
+        }
 
         function login(isAuto = false) {
             myName = document.getElementById('inputName').value.trim();
@@ -434,6 +509,7 @@
             }
         }
 
+        /* --- STABLE USER LIST & ONLINE STATUS --- */
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
@@ -443,7 +519,15 @@
                 if(u.username !== myName) {
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
-                    const statusText = u.isOnline ? 'Online' : (u.lastSeen || 'Offline');
+                    
+                    // Standardized Last Seen / Online Time Format
+                    let statusText = 'Offline';
+                    if (u.isOnline) {
+                        statusText = 'Online';
+                    } else if (u.lastSeen) {
+                        statusText = `last seen ${u.lastSeen}`;
+                    }
+
                     const unreadCount = unreadCounts[u.username] || 0;
                     
                     div.innerHTML = `
@@ -479,11 +563,13 @@
 
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
-            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen || 'Offline');
+            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen ? `last seen ${userObj.lastSeen}` : 'Offline');
             document.body.classList.add('mobile-chat-open');
+
+            // Notify server that messages are read (Blue Ticks Trigger)
+            socket.emit('mark-messages-read', { senderName: selectedTargetUser, readerName: myName });
+
             renderFilteredHistory();
-            
-            // Refresh user list UI to clear badge
             socket.emit('request-user-list');
         }
 
@@ -495,6 +581,9 @@
         socket.on('receive-private-message', (msgObj) => {
             allHistory.push(msgObj);
             if(selectedTargetUser === msgObj.senderName || (msgObj.senderName === myName && msgObj.targetName === selectedTargetUser)) {
+                if(selectedTargetUser === msgObj.senderName) {
+                    socket.emit('mark-messages-read', { senderName: selectedTargetUser, readerName: myName });
+                }
                 renderFilteredHistory();
             } 
             
@@ -502,11 +591,20 @@
                 unreadCounts[msgObj.senderName] = (unreadCounts[msgObj.senderName] || 0) + 1;
                 localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts));
                 
-                // Trigger In-App Toast & Sound
                 showInAppNotification(msgObj.senderName, msgObj.message || msgObj.mediaType);
                 const sound = document.getElementById('notifySound');
                 if(sound) sound.play().catch(e => console.log('Audio play blocked'));
             }
+        });
+
+        socket.on('messages-read-update', (data) => {
+            allHistory.forEach(m => {
+                if(m.senderName === data.readerName || m.targetName === data.readerName) {
+                    m.isRead = true;
+                    m.isDelivered = true;
+                }
+            });
+            renderFilteredHistory();
         });
 
         function showInAppNotification(sender, text) {
@@ -563,6 +661,7 @@
             closeDeleteModal();
         }
 
+        /* --- MODDED TICK SYSTEM RENDER --- */
         function renderFilteredHistory() {
             const win = document.getElementById('chatWin');
             win.innerHTML = '';
@@ -591,17 +690,59 @@
                 let html = `<strong>${isMe ? 'You' : msg.senderName}:</strong><br>`;
                 if(msg.replyTo) html += `<div class="reply-quote">${msg.replyTo}</div>`;
 
-                if(msg.mediaType === 'text') html += msg.message;
-                else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
-                else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
-                else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
+                if(msg.isViewOnce) {
+                    if (msg.isOpened) {
+                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">1️⃣ Opened</div>`;
+                    } else {
+                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">1️⃣ Photo / Media (View Once)</div>`;
+                    }
+                } else {
+                    if(msg.mediaType === 'text') html += msg.message;
+                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
+                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
+                    else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
+                }
+
+                // Ticks logic: Blue = Read, Double Grey = Delivered/Online, Single = Sent
+                let ticksHtml = '';
+                if (isMe) {
+                    if (msg.isRead) {
+                        ticksHtml = '<span class="blue-ticks">✓✓</span>';
+                    } else if (msg.isDelivered) {
+                        ticksHtml = '<span class="grey-ticks">✓✓</span>';
+                    } else {
+                        ticksHtml = '<span class="grey-ticks">✓</span>';
+                    }
+                }
                 
-                html += `<div class="time-ticks"><span>${msg.time}</span> ${isMe ? '<span class="blue-ticks">✓✓</span>' : ''}</div>`;
+                html += `<div class="time-ticks"><span>${msg.time}</span> ${ticksHtml}</div>`;
                 div.innerHTML = html;
                 win.appendChild(div);
             });
 
             win.scrollTop = win.scrollHeight;
+        }
+
+        function openViewOnceMsg(msgId, url, type) {
+            const win = window.open("", "_blank");
+            if(type === 'image') win.document.write(`<img src="${url}" style="max-width:100%;">`);
+            else if(type === 'video') win.document.write(`<video src="${url}" controls style="max-width:100%;"></video>`);
+            
+            socket.emit('mark-viewonce-opened', { msgId });
+            const msgObj = allHistory.find(m => m.msgId === msgId);
+            if(msgObj) msgObj.isOpened = true;
+            renderFilteredHistory();
+        }
+
+        socket.on('viewonce-opened-update', (data) => {
+            const msgObj = allHistory.find(m => m.msgId === data.msgId);
+            if(msgObj) msgObj.isOpened = true;
+            renderFilteredHistory();
+        });
+
+        function toggleViewOnce() {
+            isViewOnceActive = !isViewOnceActive;
+            document.getElementById('viewOnceBtn').classList.toggle('active-toggle', isViewOnceActive);
         }
 
         function handleInputChange() {
@@ -638,6 +779,38 @@
             document.getElementById('emojiBox').style.display = 'none';
         }
 
+        /* --- AI SMART REPLIES FEATURE --- */
+        function toggleAISuggestions() {
+            const bar = document.getElementById('aiSuggestionsBar');
+            if (bar.style.display === 'flex') {
+                bar.style.display = 'none';
+                return;
+            }
+
+            // Generate AI suggestions based on last incoming message
+            const lastMsg = allHistory.filter(m => m.senderName === selectedTargetUser).pop();
+            const lastText = lastMsg ? (lastMsg.message || '').toLowerCase() : '';
+
+            let replies = ["Ha thik h 👍", "Kya hua? 🤔", "Oky bro! 🔥"];
+            if (lastText.includes('hi') || lastText.includes('hello')) replies = ["Hello! 👋", "Hey, kaise ho?", "Haan bolo!"];
+            else if (lastText.includes('kaha') || lastText.includes('where')) replies = ["Ghar pe hu 🏠", "Bahut jald milte h!", "Bahar hu abhi 🚗"];
+            else if (lastText.includes('call')) replies = ["Haan, call karo 📞", "Abhi busy hu baad me karna ⏳", "Ok 2 min me karta hu"];
+
+            bar.innerHTML = '';
+            replies.forEach(r => {
+                const chip = document.createElement('div');
+                chip.className = 'ai-chip';
+                chip.innerText = `✨ ${r}`;
+                chip.onclick = () => {
+                    document.getElementById('msgInput').value = r;
+                    handleInputChange();
+                    bar.style.display = 'none';
+                };
+                bar.appendChild(chip);
+            });
+            bar.style.display = 'flex';
+        }
+
         function sendText() {
             const txt = document.getElementById('msgInput').value.trim();
             if(!txt || !selectedTargetUser) return;
@@ -649,11 +822,13 @@
                 targetName: selectedTargetUser,
                 message: txt,
                 mediaType: 'text',
+                isViewOnce: isViewOnceActive,
                 replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null,
                 clientTime: clientTime
             });
             
             document.getElementById('msgInput').value = '';
+            if (isViewOnceActive) toggleViewOnce();
             cancelReply();
             handleInputChange();
             socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
@@ -672,11 +847,61 @@
                         targetName: selectedTargetUser,
                         mediaType: isVideo ? 'video' : 'image',
                         mediaUrl: e.target.result,
+                        isViewOnce: isViewOnceActive,
                         clientTime: clientTime
                     });
+                    if (isViewOnceActive) toggleViewOnce();
                 };
                 reader.readAsDataURL(file);
             }
+        }
+
+        /* --- DIRECT CAMERA PANEL SYSTEM --- */
+        async function openDirectCamera() {
+            if(!selectedTargetUser) return alert('Select user first!');
+            document.getElementById('cameraModal').style.display = 'flex';
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false });
+                document.getElementById('camPreview').srcObject = camStream;
+            } catch (e) {
+                alert('Camera Access Denied!');
+                closeCamera();
+            }
+        }
+
+        function closeCamera() {
+            if(camStream) camStream.getTracks().forEach(t => t.stop());
+            document.getElementById('cameraModal').style.display = 'none';
+        }
+
+        async function switchDirectCamera() {
+            camFacing = camFacing === 'user' ? 'environment' : 'user';
+            closeCamera();
+            openDirectCamera();
+        }
+
+        function captureDirectPhoto() {
+            const vid = document.getElementById('camPreview');
+            const canvas = document.createElement('canvas');
+            canvas.width = vid.videoWidth || 640;
+            canvas.height = vid.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            socket.emit('send-private-message', {
+                senderName: myName,
+                targetName: selectedTargetUser,
+                mediaType: 'image',
+                mediaUrl: dataUrl,
+                isViewOnce: isViewOnceActive,
+                clientTime: clientTime
+            });
+
+            if (isViewOnceActive) toggleViewOnce();
+            closeCamera();
         }
 
         async function toggleRecordAudio() {
@@ -698,8 +923,10 @@
                                 targetName: selectedTargetUser,
                                 mediaType: 'audio',
                                 mediaUrl: e.target.result,
+                                isViewOnce: isViewOnceActive,
                                 clientTime: clientTime
                             });
+                            if (isViewOnceActive) toggleViewOnce();
                         };
                         reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
                     };
@@ -718,8 +945,14 @@
 
         socket.on('user-typing-status', (data) => {
             if(selectedTargetUser === data.fromUser) {
-                document.getElementById('targetStatusText').innerText = data.isTyping ? 'typing...' : 'Online';
-                document.getElementById('targetStatusText').style.color = data.isTyping ? 'var(--accent-green)' : 'var(--text-secondary)';
+                const statusElem = document.getElementById('targetStatusText');
+                if (data.isTyping) {
+                    statusElem.innerText = 'typing...';
+                    statusElem.style.color = 'var(--accent-green)';
+                } else {
+                    statusElem.innerText = 'Online';
+                    statusElem.style.color = 'var(--text-secondary)';
+                }
             }
         });
 
@@ -848,10 +1081,14 @@
             }
         });
 
-        /* --- WEBRTC CALL & DRAGGABLE PIP ENGINE --- */
+        /* --- ENHANCED WEBRTC CALL ENGINE (CLEAR VOICE FIX) --- */
         async function getHDMediaStream(video, facing) {
             const constraints = {
-                audio: { echoCancellation: true, noiseSuppression: true },
+                audio: { 
+                    echoCancellation: true, 
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
             };
             return await navigator.mediaDevices.getUserMedia(constraints);
