@@ -7,7 +7,7 @@ const admin = require('firebase-admin');
 const app = express();
 const server = http.createServer(app);
 
-// 1. Firebase Admin Initialisation
+// Firebase Setup
 let serviceAccount;
 try {
     serviceAccount = require('/etc/secrets/serviceAccountKey.json');
@@ -15,21 +15,19 @@ try {
     try {
         serviceAccount = require('./serviceAccountKey.json');
     } catch (err) {
-        console.log("Firebase key file not found. Running without Firebase fallback.");
+        console.log("Firebase key file not found. Running with memory mode.");
     }
 }
 
 if (serviceAccount) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     console.log("🔥 Firebase Admin Initialized Successfully!");
 }
 
 const db = serviceAccount ? admin.firestore() : null;
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB max payload
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -41,7 +39,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const activeSockets = {};   
+const activeSockets = {}; // socket.id -> username
+const userDetails = {};   // username -> { username, avatarUrl, isAdmin, isApproved, lastSeen }
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
@@ -56,26 +55,25 @@ function getUserSocketId(username) {
     return null;
 }
 
-async function getUsersFromDB() {
-    if (!db) return {};
+async function syncUsersFromDB() {
+    if (!db) return;
     try {
         const snapshot = await db.collection('users').get();
-        let users = {};
         snapshot.forEach(doc => {
-            users[doc.id] = doc.data();
+            const data = doc.data();
+            userDetails[doc.id] = data;
         });
-        return users;
     } catch (e) {
-        console.error("Error fetching users from DB:", e);
-        return {};
+        console.error("Error fetching users DB:", e);
     }
 }
 
-async function updateUserList() {
-    const registeredUsers = await getUsersFromDB();
-    const list = Object.values(registeredUsers).map(user => ({
-        ...user,
-        isOnline: Object.values(activeSockets).includes(user.username)
+async function broadcastUserList() {
+    await syncUsersFromDB();
+    const onlineUsernames = Object.values(activeSockets);
+    const list = Object.values(userDetails).map(u => ({
+        ...u,
+        isOnline: onlineUsernames.includes(u.username)
     }));
     io.emit('update-user-list', list);
 }
@@ -90,7 +88,7 @@ async function getChatHistoryFromDB() {
         });
         return history;
     } catch (e) {
-        console.error("Error fetching chats from DB:", e);
+        console.error("Error fetching chats:", e);
         return [];
     }
 }
@@ -101,13 +99,15 @@ io.on('connection', (socket) => {
         const { username, inputCode, avatarUrl } = data;
         if (!username) return socket.emit('login-failed', 'Username is required!');
 
-        const registeredUsers = await getUsersFromDB();
+        await syncUsersFromDB();
+        let userObj = userDetails[username];
         let isAdmin = false;
-        const isExistingUser = !!registeredUsers[username];
 
-        if (isExistingUser) {
-            isAdmin = registeredUsers[username].isAdmin;
+        // नियम: अगर यूजर पहले से Approved है, तो नया कोड नहीं मांगेगा
+        if (userObj && userObj.isApproved) {
+            isAdmin = !!userObj.isAdmin;
         } else {
+            // नया यूजर या Unapproved यूजर
             if (inputCode === MASTER_ADMIN_CODE) {
                 isAdmin = true;
             } else if (inputCode === currentDynamicCode) {
@@ -117,41 +117,47 @@ io.on('connection', (socket) => {
             }
         }
 
-        const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+        const userAvatar = avatarUrl || userObj?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
 
-        const userData = {
+        userObj = {
             username,
             avatarUrl: userAvatar,
-            isAdmin,
+            isAdmin: isAdmin,
+            isApproved: true, // अब यह हमेशा एंटर हो सकता है जब तक Kick न हो
             lastSeen: 'Online'
         };
 
+        userDetails[username] = userObj;
+
         if (db) {
-            await db.collection('users').doc(username).set(userData, { merge: true });
+            await db.collection('users').doc(username).set(userObj, { merge: true });
         }
 
         activeSockets[socket.id] = username;
+        
+        // सब यूज़र्स को पर्सनल और ग्लोबल रूम में जॉइन कराएं
         socket.join(username);
+        socket.join('global-chat-room');
 
         socket.emit('login-success', {
             username: username,
             isAdmin: isAdmin,
-            avatarUrl: userData.avatarUrl
+            avatarUrl: userObj.avatarUrl
         });
 
         const chatHistory = await getChatHistoryFromDB();
         socket.emit('load-chat-history', chatHistory);
-        await updateUserList();
+        await broadcastUserList();
     });
 
     socket.on('request-user-list', async () => { 
-        await updateUserList(); 
+        await broadcastUserList(); 
     });
 
+    // कोड बदलने का पावर केवल Admin के पास
     socket.on('generate-new-code', async () => {
         const username = activeSockets[socket.id];
-        const users = await getUsersFromDB();
-        if (username && users[username]?.isAdmin) {
+        if (username && userDetails[username]?.isAdmin) {
             currentDynamicCode = generateRandomCode();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
@@ -159,33 +165,39 @@ io.on('connection', (socket) => {
 
     socket.on('set-custom-code', async (data) => {
         const username = activeSockets[socket.id];
-        const users = await getUsersFromDB();
-        if (username && users[username]?.isAdmin && data.newCode) {
+        if (username && userDetails[username]?.isAdmin && data.newCode) {
             currentDynamicCode = data.newCode.trim();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
+    // Admin जब किसी यूजर को KICK करेगा, तब उसका Approved स्टेटस खत्म होगा और कोड मांगा जाएगा
     socket.on('remove-user-by-admin', async (data) => {
         const requestingUser = activeSockets[socket.id];
-        const users = await getUsersFromDB();
-        if (requestingUser && users[requestingUser]?.isAdmin) {
+        if (requestingUser && userDetails[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
+            
+            delete userDetails[userToKick];
             if (db) {
                 await db.collection('users').doc(userToKick).delete();
             }
             
             const targetSocketId = getUserSocketId(userToKick);
-            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the administrator.');
-            await updateUserList();
+            if (targetSocketId) {
+                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है। अब दोबारा जुड़ने के लिए कोड चाहिए।');
+            }
+            await broadcastUserList();
         }
     });
 
     socket.on('update-avatar', async (data) => {
+        if (userDetails[data.username]) {
+            userDetails[data.username].avatarUrl = data.newAvatarUrl;
+        }
         if (db) {
             await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
-            await updateUserList();
         }
+        await broadcastUserList();
     });
 
     socket.on('send-private-message', async (data) => {
@@ -301,16 +313,19 @@ io.on('connection', (socket) => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            if (userDetails[username]) {
+                userDetails[username].lastSeen = `last seen today at ${timeStr}`;
+            }
             if (db) {
                 await db.collection('users').doc(username).update({
                     lastSeen: `last seen today at ${timeStr}`
                 });
             }
             delete activeSockets[socket.id];
-            await updateUserList();
+            await broadcastUserList();
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server Active on Port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server Active on Port ${PORT}`));
