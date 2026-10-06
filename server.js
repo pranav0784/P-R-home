@@ -7,7 +7,7 @@ const admin = require('firebase-admin');
 const app = express();
 const server = http.createServer(app);
 
-// Firebase Setup
+// 1. Firebase Admin Initialisation (Render Secret / Local Support)
 let serviceAccount;
 try {
     serviceAccount = require('/etc/secrets/serviceAccountKey.json');
@@ -15,16 +15,31 @@ try {
     try {
         serviceAccount = require('./serviceAccountKey.json');
     } catch (err) {
-        console.log("Firebase key file not found. Running with memory mode.");
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            try {
+                serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            } catch (pErr) {
+                console.log("Error parsing FIREBASE_SERVICE_ACCOUNT env var.");
+            }
+        }
+        if (!serviceAccount) {
+            console.log("Firebase key file/env not found. Running with in-memory mode.");
+        }
     }
 }
 
 if (serviceAccount) {
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    console.log("🔥 Firebase Admin Initialized Successfully!");
+    try {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("🔥 Firebase Admin Initialized Successfully!");
+    } catch (fErr) {
+        console.error("Firebase Initialization Error:", fErr);
+    }
 }
 
-const db = serviceAccount ? admin.firestore() : null;
+const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 100MB
@@ -103,11 +118,9 @@ io.on('connection', (socket) => {
         let userObj = userDetails[username];
         let isAdmin = false;
 
-        // नियम: अगर यूजर पहले से Approved है, तो नया कोड नहीं मांगेगा
         if (userObj && userObj.isApproved) {
             isAdmin = !!userObj.isAdmin;
         } else {
-            // नया यूजर या Unapproved यूजर
             if (inputCode === MASTER_ADMIN_CODE) {
                 isAdmin = true;
             } else if (inputCode === currentDynamicCode) {
@@ -123,7 +136,7 @@ io.on('connection', (socket) => {
             username,
             avatarUrl: userAvatar,
             isAdmin: isAdmin,
-            isApproved: true, // अब यह हमेशा एंटर हो सकता है जब तक Kick न हो
+            isApproved: true,
             lastSeen: 'Online'
         };
 
@@ -135,7 +148,6 @@ io.on('connection', (socket) => {
 
         activeSockets[socket.id] = username;
         
-        // सब यूज़र्स को पर्सनल और ग्लोबल रूम में जॉइन कराएं
         socket.join(username);
         socket.join('global-chat-room');
 
@@ -154,7 +166,6 @@ io.on('connection', (socket) => {
         await broadcastUserList(); 
     });
 
-    // कोड बदलने का पावर केवल Admin के पास
     socket.on('generate-new-code', async () => {
         const username = activeSockets[socket.id];
         if (username && userDetails[username]?.isAdmin) {
@@ -171,7 +182,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Admin जब किसी यूजर को KICK करेगा, तब उसका Approved स्टेटस खत्म होगा और कोड मांगा जाएगा
     socket.on('remove-user-by-admin', async (data) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && userDetails[requestingUser]?.isAdmin) {
@@ -184,7 +194,7 @@ io.on('connection', (socket) => {
             
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है। अब दोबारा जुड़ने के लिए कोड चाहिए।');
+                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है। अब दोबारा जुड़ने के लिए नया कोड दर्ज करें।');
             }
             await broadcastUserList();
         }
