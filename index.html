@@ -76,7 +76,7 @@
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
-        .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
+        .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; z-index: 10; }
         .target-profile { display: flex; align-items: center; gap: 12px; }
         .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
         .header-actions { display: flex; gap: 16px; align-items: center; }
@@ -85,15 +85,21 @@
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
-        .chat-input { height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
-        .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        /* --- IMPROVED CHAT INPUT PANEL --- */
+        .chat-input { 
+            min-height: 62px; background: var(--header-dark); padding: 8px 12px; 
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0; 
+            border-top: 1px solid var(--card-border); position: relative; z-index: 20;
+        }
+        .input-box { flex: 1; padding: 12px 16px; border-radius: 24px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.35rem; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.1s; }
         .btn-icon:hover { color: var(--accent-green); }
+        .btn-icon:active { transform: scale(0.9); }
         .btn-icon.active-toggle { color: var(--accent-green); background: rgba(0, 168, 132, 0.2); border-radius: 50%; }
 
-        /* --- EXTENDED WHATSAPP-STYLE EMOJI PICKER --- */
+        /* --- EMOJI PICKER --- */
         #emojiBox { 
-            display: none; position: absolute; bottom: 68px; left: 10px; 
+            display: none; position: absolute; bottom: 70px; left: 10px; 
             background: var(--panel-dark); border: 1px solid var(--card-border); 
             padding: 12px; border-radius: 12px; width: 320px; max-height: 250px; 
             overflow-y: auto; flex-wrap: wrap; gap: 10px; z-index: 500; 
@@ -102,9 +108,9 @@
         #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
         #emojiBox span:hover { transform: scale(1.3); }
 
-        /* --- AI SMART SUGGESTION BAR --- */
+        /* --- AI SMART SUGGESTIONS BAR --- */
         #aiSuggestionsBar {
-            display: none; position: absolute; bottom: 68px; left: 50px; right: 50px;
+            display: none; position: absolute; bottom: 70px; left: 10px; right: 10px;
             background: #182229; border: 1px solid var(--accent-green); padding: 8px 12px;
             border-radius: 12px; gap: 8px; overflow-x: auto; z-index: 450;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -118,13 +124,13 @@
         .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
         .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
-        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; cursor: pointer; }
+        .msg img, .msg video { max-width: 100%; border-radius: 8px; margin-top: 5px; max-height: 250px; object-fit: cover; cursor: pointer; }
         .msg audio { max-width: 100%; margin-top: 5px; }
         
         .view-once-badge {
             display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4);
             color: var(--accent-green); border: 1px solid var(--accent-green); padding: 6px 12px;
-            border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin-top: 4px;
+            border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin-top: 4px; cursor: pointer;
         }
 
         .reply-quote { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-green); padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 0.8rem; color: #b0bec5; }
@@ -132,6 +138,35 @@
         .blue-ticks { color: #53bdeb; font-weight: bold; }
         .grey-ticks { color: var(--text-secondary); font-weight: bold; }
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+
+        /* --- MULTI-MEDIA SEND PREVIEW MODAL (WHATSAPP STYLE) --- */
+        #mediaPreviewModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(11, 20, 26, 0.98); z-index: 8800; flex-direction: column; justify-content: space-between;
+        }
+        .preview-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .preview-body { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 10px; position: relative; }
+        .preview-body img, .preview-body video { max-width: 90%; max-height: 80vh; border-radius: 12px; object-fit: contain; }
+        .preview-footer { padding: 16px; background: var(--header-dark); display: flex; flex-direction: column; gap: 12px; }
+        .preview-thumbs-bar { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .preview-thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 2px solid transparent; }
+        .preview-thumb.active { border-color: var(--accent-green); }
+        .preview-action-row { display: flex; align-items: center; gap: 10px; }
+        .view-once-toggle-btn {
+            background: #2a3942; border: 1px solid var(--card-border); color: #fff;
+            width: 42px; height: 42px; border-radius: 50%; font-weight: bold; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; font-size: 1.1rem;
+        }
+        .view-once-toggle-btn.active { background: var(--accent-green); color: #000; border-color: var(--accent-green); }
+
+        /* --- FULL SCREEN LIGHTBOX / IMAGE VIEWER WITH SAVE & BACK --- */
+        #lightboxModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: #000; z-index: 9500; flex-direction: column; justify-content: space-between;
+        }
+        .lightbox-topbar { padding: 16px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); z-index: 10; }
+        .lightbox-content { flex: 1; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        #lightboxImg { max-width: 100vw; max-height: 85vh; object-fit: contain; }
 
         /* --- DIRECT CAMERA MODAL --- */
         #cameraModal {
@@ -257,6 +292,39 @@
         </div>
     </div>
 
+    <!-- Multi-Media Send Preview Modal (WhatsApp Style) -->
+    <div id="mediaPreviewModal">
+        <div class="preview-header">
+            <button class="btn-icon" style="color:#fff;" onclick="closeMediaPreview()">✕</button>
+            <span style="font-weight:bold; color:#fff;" id="previewTitle">Send Media</span>
+            <div></div>
+        </div>
+        <div class="preview-body">
+            <img id="activePreviewImg" src="" style="display:none;">
+            <video id="activePreviewVid" src="" controls style="display:none;"></video>
+        </div>
+        <div class="preview-footer">
+            <div class="preview-thumbs-bar" id="previewThumbsContainer"></div>
+            <div class="preview-action-row">
+                <button class="view-once-toggle-btn" id="previewViewOnceBtn" onclick="togglePreviewViewOnce()" title="View Once Mode">1️⃣</button>
+                <input type="text" id="previewCaptionInput" class="input-box" placeholder="Add a caption...">
+                <button class="btn-icon" style="color:var(--accent-green); font-size:1.8rem;" onclick="sendBatchMedia()">➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Lightbox / Image Viewer -->
+    <div id="lightboxModal">
+        <div class="lightbox-topbar">
+            <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeLightbox()">← Back</button>
+            <span id="lightboxTitle" style="color:#fff; font-weight:bold;">Photo</span>
+            <a id="lightboxDownloadBtn" download="image.jpg" class="btn-icon" style="color:#fff; font-size:1.5rem; text-decoration:none;">⬇</a>
+        </div>
+        <div class="lightbox-content">
+            <img id="lightboxImg" src="">
+        </div>
+    </div>
+
     <!-- Direct In-App Camera Modal -->
     <div id="cameraModal">
         <video id="camPreview" autoplay playsinline></video>
@@ -371,7 +439,7 @@
                 <button onclick="cancelReply()" style="background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">✕</button>
             </div>
 
-            <!-- EXTENDED EMOJI PICKER -->
+            <!-- EMOJI PICKER -->
             <div id="emojiBox"></div>
 
             <!-- AI QUICK REPLY BAR -->
@@ -382,10 +450,9 @@
                 <button class="btn-icon" onclick="toggleAISuggestions()" title="AI Smart Reply">✨</button>
                 <button class="btn-icon" onclick="openDirectCamera()" title="Direct Camera">📷</button>
                 <button class="btn-icon" onclick="document.getElementById('fileInput').click()" title="Attach File">📎</button>
-                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendMedia(this)">
                 
-                <!-- VIEW ONCE TOGGLE BUTTON -->
-                <button class="btn-icon" id="viewOnceBtn" onclick="toggleViewOnce()" title="View Once Mode (1️⃣)">1️⃣</button>
+                <!-- MULTIPLE FILE SELECTION -->
+                <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="handleFileSelect(this)">
 
                 <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter') sendText()">
                 
@@ -404,7 +471,6 @@
         let unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
-        let isViewOnceActive = false;
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -415,6 +481,9 @@
 
         // Direct Camera Variables
         let camStream = null, camFacing = 'environment';
+
+        // Multi Media Preview Variables
+        let selectedMediaFiles = [], activePreviewIndex = 0, isPreviewViewOnce = false;
 
         // Whiteboard Variables
         let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
@@ -429,6 +498,10 @@
             '😰','😥','😓','🫣','🤗','🫡','🤔','🫣','🤭','🫢','🫡','🤫','🫠','🤥','😶','🫥','😐','😑','😬','🫨',
             '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
         ];
+
+        function getLocalTimeString() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
 
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
@@ -509,7 +582,7 @@
             }
         }
 
-        /* --- STABLE USER LIST & ONLINE STATUS --- */
+        /* --- STABLE USER LIST & ONLINE STATUS (FIXED DOUBLE LAST SEEN BUG) --- */
         socket.on('update-user-list', (users) => {
             const container = document.getElementById('userListContainer');
             container.innerHTML = '';
@@ -520,13 +593,7 @@
                     const div = document.createElement('div');
                     div.className = `user-item ${selectedTargetUser === u.username ? 'active' : ''}`;
                     
-                    // Standardized Last Seen / Online Time Format
-                    let statusText = 'Offline';
-                    if (u.isOnline) {
-                        statusText = 'Online';
-                    } else if (u.lastSeen) {
-                        statusText = `last seen ${u.lastSeen}`;
-                    }
+                    let statusText = u.isOnline ? 'Online' : (u.lastSeen ? u.lastSeen : 'Offline');
 
                     const unreadCount = unreadCounts[u.username] || 0;
                     
@@ -563,10 +630,9 @@
 
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
-            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen ? `last seen ${userObj.lastSeen}` : 'Offline');
+            document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen ? userObj.lastSeen : 'Offline');
             document.body.classList.add('mobile-chat-open');
 
-            // Notify server that messages are read (Blue Ticks Trigger)
             socket.emit('mark-messages-read', { senderName: selectedTargetUser, readerName: myName });
 
             renderFilteredHistory();
@@ -661,7 +727,7 @@
             closeDeleteModal();
         }
 
-        /* --- MODDED TICK SYSTEM RENDER --- */
+        /* --- CHAT RENDER & LIGHTBOX TRIGGER --- */
         function renderFilteredHistory() {
             const win = document.getElementById('chatWin');
             win.innerHTML = '';
@@ -698,12 +764,11 @@
                     }
                 } else {
                     if(msg.mediaType === 'text') html += msg.message;
-                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}">`;
-                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
+                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}" onclick="event.stopPropagation(); openLightbox('${msg.mediaUrl}')">${msg.message ? `<br><span>${msg.message}</span>` : ''}`;
+                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>${msg.message ? `<br><span>${msg.message}</span>` : ''}`;
                     else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 }
 
-                // Ticks logic: Blue = Read, Double Grey = Delivered/Online, Single = Sent
                 let ticksHtml = '';
                 if (isMe) {
                     if (msg.isRead) {
@@ -723,11 +788,18 @@
             win.scrollTop = win.scrollHeight;
         }
 
+        /* --- FULLSCREEN LIGHTBOX SYSTEM --- */
+        function openLightbox(url) {
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxDownloadBtn').href = url;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+        function closeLightbox() {
+            document.getElementById('lightboxModal').style.display = 'none';
+        }
+
         function openViewOnceMsg(msgId, url, type) {
-            const win = window.open("", "_blank");
-            if(type === 'image') win.document.write(`<img src="${url}" style="max-width:100%;">`);
-            else if(type === 'video') win.document.write(`<video src="${url}" controls style="max-width:100%;"></video>`);
-            
+            openLightbox(url);
             socket.emit('mark-viewonce-opened', { msgId });
             const msgObj = allHistory.find(m => m.msgId === msgId);
             if(msgObj) msgObj.isOpened = true;
@@ -739,11 +811,6 @@
             if(msgObj) msgObj.isOpened = true;
             renderFilteredHistory();
         });
-
-        function toggleViewOnce() {
-            isViewOnceActive = !isViewOnceActive;
-            document.getElementById('viewOnceBtn').classList.toggle('active-toggle', isViewOnceActive);
-        }
 
         function handleInputChange() {
             const txt = document.getElementById('msgInput').value.trim();
@@ -779,7 +846,6 @@
             document.getElementById('emojiBox').style.display = 'none';
         }
 
-        /* --- AI SMART REPLIES FEATURE --- */
         function toggleAISuggestions() {
             const bar = document.getElementById('aiSuggestionsBar');
             if (bar.style.display === 'flex') {
@@ -787,7 +853,6 @@
                 return;
             }
 
-            // Generate AI suggestions based on last incoming message
             const lastMsg = allHistory.filter(m => m.senderName === selectedTargetUser).pop();
             const lastText = lastMsg ? (lastMsg.message || '').toLowerCase() : '';
 
@@ -814,32 +879,95 @@
         function sendText() {
             const txt = document.getElementById('msgInput').value.trim();
             if(!txt || !selectedTargetUser) return;
-            
-            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
             socket.emit('send-private-message', {
                 senderName: myName,
                 targetName: selectedTargetUser,
                 message: txt,
                 mediaType: 'text',
-                isViewOnce: isViewOnceActive,
+                isViewOnce: false,
                 replyTo: activeReplyMsg ? `${activeReplyMsg.senderName}: ${activeReplyMsg.message || activeReplyMsg.mediaType}` : null,
-                clientTime: clientTime
+                clientTime: getLocalTimeString()
             });
             
             document.getElementById('msgInput').value = '';
-            if (isViewOnceActive) toggleViewOnce();
             cancelReply();
             handleInputChange();
             socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
         }
 
-        function sendMedia(input) {
-            if(input.files && input.files[0] && selectedTargetUser) {
-                const file = input.files[0];
-                const isVideo = file.type.startsWith('video/');
-                const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        /* --- MULTIPLE FILE HANDLING & WHATSAPP PREVIEW SYSTEM --- */
+        function handleFileSelect(input) {
+            if (input.files && input.files.length > 0 && selectedTargetUser) {
+                selectedMediaFiles = Array.from(input.files);
+                activePreviewIndex = 0;
+                isPreviewViewOnce = false;
+                document.getElementById('previewViewOnceBtn').classList.remove('active');
+                document.getElementById('previewCaptionInput').value = '';
                 
+                openMediaPreviewModal();
+            }
+        }
+
+        function openMediaPreviewModal() {
+            const modal = document.getElementById('mediaPreviewModal');
+            modal.style.display = 'flex';
+            renderPreviewThumbs();
+            showActivePreviewMedia();
+        }
+
+        function closeMediaPreview() {
+            document.getElementById('mediaPreviewModal').style.display = 'none';
+            selectedMediaFiles = [];
+            document.getElementById('fileInput').value = '';
+        }
+
+        function togglePreviewViewOnce() {
+            isPreviewViewOnce = !isPreviewViewOnce;
+            document.getElementById('previewViewOnceBtn').classList.toggle('active', isPreviewViewOnce);
+        }
+
+        function renderPreviewThumbs() {
+            const container = document.getElementById('previewThumbsContainer');
+            container.innerHTML = '';
+
+            selectedMediaFiles.forEach((file, idx) => {
+                const img = document.createElement('img');
+                img.className = `preview-thumb ${idx === activePreviewIndex ? 'active' : ''}`;
+                img.src = URL.createObjectURL(file);
+                img.onclick = () => {
+                    activePreviewIndex = idx;
+                    renderPreviewThumbs();
+                    showActivePreviewMedia();
+                };
+                container.appendChild(img);
+            });
+        }
+
+        function showActivePreviewMedia() {
+            const file = selectedMediaFiles[activePreviewIndex];
+            if (!file) return;
+
+            const imgEl = document.getElementById('activePreviewImg');
+            const vidEl = document.getElementById('activePreviewVid');
+
+            if (file.type.startsWith('image/')) {
+                vidEl.style.display = 'none';
+                imgEl.style.display = 'block';
+                imgEl.src = URL.createObjectURL(file);
+            } else if (file.type.startsWith('video/')) {
+                imgEl.style.display = 'none';
+                vidEl.style.display = 'block';
+                vidEl.src = URL.createObjectURL(file);
+            }
+        }
+
+        function sendBatchMedia() {
+            if (!selectedTargetUser || selectedMediaFiles.length === 0) return;
+            const caption = document.getElementById('previewCaptionInput').value.trim();
+
+            selectedMediaFiles.forEach((file, index) => {
+                const isVideo = file.type.startsWith('video/');
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     socket.emit('send-private-message', {
@@ -847,13 +975,15 @@
                         targetName: selectedTargetUser,
                         mediaType: isVideo ? 'video' : 'image',
                         mediaUrl: e.target.result,
-                        isViewOnce: isViewOnceActive,
-                        clientTime: clientTime
+                        message: index === 0 ? caption : '',
+                        isViewOnce: isPreviewViewOnce,
+                        clientTime: getLocalTimeString()
                     });
-                    if (isViewOnceActive) toggleViewOnce();
                 };
                 reader.readAsDataURL(file);
-            }
+            });
+
+            closeMediaPreview();
         }
 
         /* --- DIRECT CAMERA PANEL SYSTEM --- */
@@ -889,18 +1019,16 @@
             ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
             
             const dataUrl = canvas.toDataURL('image/jpeg');
-            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
             socket.emit('send-private-message', {
                 senderName: myName,
                 targetName: selectedTargetUser,
                 mediaType: 'image',
                 mediaUrl: dataUrl,
-                isViewOnce: isViewOnceActive,
-                clientTime: clientTime
+                isViewOnce: false,
+                clientTime: getLocalTimeString()
             });
 
-            if (isViewOnceActive) toggleViewOnce();
             closeCamera();
         }
 
@@ -915,7 +1043,6 @@
                     audioChunks = [];
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
-                        const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             socket.emit('send-private-message', {
@@ -923,10 +1050,9 @@
                                 targetName: selectedTargetUser,
                                 mediaType: 'audio',
                                 mediaUrl: e.target.result,
-                                isViewOnce: isViewOnceActive,
-                                clientTime: clientTime
+                                isViewOnce: false,
+                                clientTime: getLocalTimeString()
                             });
-                            if (isViewOnceActive) toggleViewOnce();
                         };
                         reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
                     };
@@ -1081,7 +1207,7 @@
             }
         });
 
-        /* --- ENHANCED WEBRTC CALL ENGINE (CLEAR VOICE FIX) --- */
+        /* --- WEBRTC CALL ENGINE --- */
         async function getHDMediaStream(video, facing) {
             const constraints = {
                 audio: { 
@@ -1150,7 +1276,7 @@
                 targetName: selectedTargetUser,
                 message: isVideoCall ? 'Outgoing Video Call' : 'Outgoing Voice Call',
                 mediaType: 'call_log',
-                clientTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+                clientTime: getLocalTimeString()
             });
 
             document.getElementById('callModal').style.display = 'flex';
