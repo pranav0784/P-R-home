@@ -81,7 +81,6 @@
         .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
         .header-actions { display: flex; gap: 12px; align-items: center; position: relative; }
 
-        /* Dropdown Menu for Three Dots */
         .dropdown-menu {
             display: none; position: absolute; right: 0; top: 45px; background: var(--panel-dark);
             border: 1px solid var(--card-border); border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -94,12 +93,12 @@
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
-        .chat-input { min-height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
+        /* Advanced WhatsApp Style Chat Input Panel */
+        .chat-input { min-height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; resize: none; max-height: 120px; }
-        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.3rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0; }
+        .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.35rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0; }
         .btn-icon:hover { color: var(--accent-green); }
 
-        /* Emoji Picker */
         #emojiBox { 
             display: none; position: absolute; bottom: 68px; left: 10px; 
             background: var(--panel-dark); border: 1px solid var(--card-border); 
@@ -110,14 +109,20 @@
         #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
         #emojiBox span:hover { transform: scale(1.3); }
 
-        /* Media / View Once Popup Modal */
+        /* Media Modal & View Once Preview Popup */
         #mediaModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(0,0,0,0.95); z-index: 9999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
         }
         .media-modal-header { width: 100%; display: flex; justify-content: space-between; align-items: center; }
-        .media-modal-content { max-width: 90%; max-height: 75vh; object-fit: contain; border-radius: 8px; }
-        .media-modal-footer { display: flex; gap: 15px; align-items: center; }
+        .media-modal-content { max-width: 90%; max-height: 70vh; object-fit: contain; border-radius: 8px; }
+        .media-modal-footer { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; }
+
+        /* Media Preview Confirm Box (WhatsApp Style View Once Toggle) */
+        #mediaPreviewModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(11,20,26,0.96); z-index: 9500; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
+        }
 
         .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
@@ -137,7 +142,6 @@
         .grey-ticks { color: var(--text-secondary); font-weight: bold; }
         .call-log-bubble { align-self: center; background: #1f2c34; border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 12px; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 
-        /* Direct Camera Modal */
         #cameraModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
@@ -145,6 +149,12 @@
         #camPreview { width: 100%; height: 80%; object-fit: cover; }
         .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
         .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
+
+        #inAppNotificationToast {
+            display: none; position: fixed; top: 20px; right: 20px; background: var(--panel-dark);
+            color: #fff; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--card-border);
+            z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
 
         #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
         .delete-card { background: var(--panel-dark); padding: 20px; border-radius: 16px; border: 1px solid var(--card-border); width: 290px; text-align: center; }
@@ -173,7 +183,7 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* Call & Video Modal */
+        /* Call Modal */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
@@ -207,12 +217,6 @@
             position: absolute; bottom: 30px; z-index: 30; width: 90%; max-width: 360px;
             background: var(--panel-dark); border: 1px solid var(--card-border);
             padding: 20px; border-radius: 24px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
-
-        #inAppNotificationToast {
-            display: none; position: fixed; top: 20px; right: 20px; background: var(--panel-dark);
-            color: #fff; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--card-border);
-            z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
         @media (max-width: 768px) {
@@ -252,6 +256,26 @@
             <video id="modalVid" class="media-modal-content" controls style="display:none;"></video>
         </div>
         <div class="media-modal-footer"></div>
+    </div>
+
+    <!-- WhatsApp Style Media Preview Modal (With View Once Checkbox) -->
+    <div id="mediaPreviewModal">
+        <div class="media-modal-header">
+            <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeMediaPreview()">✕</button>
+            <span style="font-weight:bold; color:var(--text-primary);">Send Media</span>
+            <span></span>
+        </div>
+        <div style="display:flex; justify-content:center; align-items:center; flex:1; width:100%;">
+            <img id="previewImg" class="media-modal-content" style="display:none;">
+            <video id="previewVid" class="media-modal-content" controls style="display:none;"></video>
+        </div>
+        <div class="media-modal-footer" style="padding-bottom: 20px;">
+            <div style="display:flex; align-items:center; gap:10px; background:#1f2c34; padding:8px 16px; border-radius:20px; border:1px solid var(--card-border);">
+                <input type="checkbox" id="viewOnceCheckbox" style="width:18px; height:18px; accent-color:var(--accent-green); cursor:pointer;">
+                <label for="viewOnceCheckbox" style="font-size:0.9rem; cursor:pointer; color:var(--text-primary);">View Once (1️⃣)</label>
+            </div>
+            <button onclick="confirmSendMedia()" style="background:var(--accent-green); color:#fff; border:none; padding:12px 30px; border-radius:24px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 15px rgba(0,168,132,0.4);">Send ➔</button>
+        </div>
     </div>
 
     <div id="deleteModal">
@@ -388,12 +412,9 @@
                 <button class="btn-icon" onclick="toggleEmojiBox()" title="Emoji Picker">😊</button>
                 <button class="btn-icon" onclick="openDirectCamera()" title="Direct Camera">📷</button>
                 
-                <!-- Media Attachment with Multiple Select Option -->
+                <!-- Media Attachment Input -->
                 <button class="btn-icon" onclick="document.getElementById('fileInput').click()" title="Attach Photos/Videos">📎</button>
-                <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="sendMedia(this)">
-                
-                <!-- View Once Toggle Button -->
-                <button class="btn-icon" id="viewOnceBtn" onclick="toggleViewOnce()" title="View Once Mode">👁️‍🗨️</button>
+                <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="handleFileSelect(this)">
 
                 <textarea id="msgInput" class="input-box" rows="1" placeholder="Type a message..." oninput="handleInputChange()" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendText();}"></textarea>
                 
@@ -412,7 +433,8 @@
         let unreadCounts = JSON.parse(localStorage.getItem('unreadCounts') || '{}');
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
-        let isViewOnceActive = false;
+        let pendingMediaFiles = [];
+        let mediaReaderIndex = 0;
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -670,9 +692,10 @@
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         }
 
+        // Clear Chat only on My Local Screen
         function clearCurrentChat() {
             if(!selectedTargetUser) return;
-            if(confirm('Clear all chat history with this user?')) {
+            if(confirm('Clear chat history on your screen?')) {
                 allHistory.forEach(m => {
                     if((m.senderName === myName && m.targetName === selectedTargetUser) ||
                        (m.senderName === selectedTargetUser && m.targetName === myName)) {
@@ -780,11 +803,162 @@
             renderFilteredHistory();
         });
 
-        function toggleViewOnce() {
-            isViewOnceActive = !isViewOnceActive;
-            const btn = document.getElementById('viewOnceBtn');
-            btn.style.color = isViewOnceActive ? 'var(--accent-green)' : 'var(--text-secondary)';
-            alert(isViewOnceActive ? 'View Once Mode Enabled (Photo/Video can be viewed only once)' : 'View Once Mode Disabled');
+        // WhatsApp Style Media Preview & Send Handler
+        function handleFileSelect(input) {
+            if(input.files && input.files.length > 0 && selectedTargetUser) {
+                pendingMediaFiles = Array.from(input.files);
+                mediaReaderIndex = 0;
+                document.getElementById('viewOnceCheckbox').checked = false;
+                showNextMediaPreview();
+                input.value = '';
+            }
+        }
+
+        function showNextMediaPreview() {
+            if(mediaReaderIndex < pendingMediaFiles.length) {
+                const file = pendingMediaFiles[mediaReaderIndex];
+                const isVideo = file.type.startsWith('video/');
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('previewImg');
+                    const vid = document.getElementById('previewVid');
+                    document.getElementById('mediaPreviewModal').style.display = 'flex';
+
+                    if(isVideo) {
+                        vid.src = e.target.result;
+                        vid.style.display = 'block';
+                        img.style.display = 'none';
+                    } else {
+                        img.src = e.target.result;
+                        img.style.display = 'block';
+                        vid.style.display = 'none';
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                closeMediaPreview();
+            }
+        }
+
+        function closeMediaPreview() {
+            document.getElementById('mediaPreviewModal').style.display = 'none';
+            document.getElementById('previewVid').pause();
+            pendingMediaFiles = [];
+            mediaReaderIndex = 0;
+        }
+
+        function confirmSendMedia() {
+            if(mediaReaderIndex < pendingMediaFiles.length && selectedTargetUser) {
+                const file = pendingMediaFiles[mediaReaderIndex];
+                const isVideo = file.type.startsWith('video/');
+                const isViewOnce = document.getElementById('viewOnceCheckbox').checked;
+                const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    socket.emit('send-private-message', {
+                        senderName: myName,
+                        targetName: selectedTargetUser,
+                        mediaType: isVideo ? 'video' : 'image',
+                        mediaUrl: e.target.result,
+                        isViewOnce: isViewOnce,
+                        clientTime: clientTime
+                    });
+                    mediaReaderIndex++;
+                    showNextMediaPreview();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Direct Camera with High Quality HD (1080p)
+        async function openDirectCamera() {
+            if(!selectedTargetUser) return alert('Select user first!');
+            document.getElementById('cameraModal').style.display = 'flex';
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: camFacing }, 
+                    audio: false 
+                });
+                document.getElementById('camPreview').srcObject = camStream;
+            } catch (e) {
+                alert('Camera Access Denied!');
+                closeCamera();
+            }
+        }
+
+        function closeCamera() {
+            if(camStream) camStream.getTracks().forEach(t => t.stop());
+            document.getElementById('cameraModal').style.display = 'none';
+        }
+
+        async function switchDirectCamera() {
+            camFacing = camFacing === 'user' ? 'environment' : 'user';
+            closeCamera();
+            openDirectCamera();
+        }
+
+        function captureDirectPhoto() {
+            const vid = document.getElementById('camPreview');
+            const canvas = document.createElement('canvas');
+            canvas.width = vid.videoWidth || 1920;
+            canvas.height = vid.videoHeight || 1080;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            closeCamera();
+
+            // Push to pending array so user can choose View Once
+            pendingMediaFiles = [{ type: 'image/jpeg', dataUrl: dataUrl }];
+            // Create a fake File object from dataUrl
+            fetch(dataUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], "camera_photo.jpg", { type: "image/jpeg" });
+                    pendingMediaFiles = [file];
+                    mediaReaderIndex = 0;
+                    document.getElementById('viewOnceCheckbox').checked = false;
+                    showNextMediaPreview();
+                });
+        }
+
+        async function toggleRecordAudio() {
+            if(!selectedTargetUser) return alert('Select user first!');
+            const btn = document.getElementById('voiceBtn');
+            
+            if(!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            socket.emit('send-private-message', {
+                                senderName: myName,
+                                targetName: selectedTargetUser,
+                                mediaType: 'audio',
+                                mediaUrl: e.target.result,
+                                isViewOnce: false,
+                                clientTime: clientTime
+                            });
+                        };
+                        reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+                    };
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.style.color = 'red';
+                } catch(err) {
+                    alert('Microphone Access Denied!');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.style.color = 'var(--text-secondary)';
+            }
         }
 
         function handleInputChange() {
@@ -843,116 +1017,6 @@
             cancelReply();
             handleInputChange();
             socket.emit('typing', { targetName: selectedTargetUser, isTyping: false });
-        }
-
-        // Support for Multiple Files Selection
-        function sendMedia(input) {
-            if(input.files && input.files.length > 0 && selectedTargetUser) {
-                Array.from(input.files).forEach(file => {
-                    const isVideo = file.type.startsWith('video/');
-                    const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                    
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        socket.emit('send-private-message', {
-                            senderName: myName,
-                            targetName: selectedTargetUser,
-                            mediaType: isVideo ? 'video' : 'image',
-                            mediaUrl: e.target.result,
-                            isViewOnce: isViewOnceActive,
-                            clientTime: clientTime
-                        });
-                        if (isViewOnceActive) toggleViewOnce();
-                    };
-                    reader.readAsDataURL(file);
-                });
-                input.value = '';
-            }
-        }
-
-        async function openDirectCamera() {
-            if(!selectedTargetUser) return alert('Select user first!');
-            document.getElementById('cameraModal').style.display = 'flex';
-            try {
-                camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false });
-                document.getElementById('camPreview').srcObject = camStream;
-            } catch (e) {
-                alert('Camera Access Denied!');
-                closeCamera();
-            }
-        }
-
-        function closeCamera() {
-            if(camStream) camStream.getTracks().forEach(t => t.stop());
-            document.getElementById('cameraModal').style.display = 'none';
-        }
-
-        async function switchDirectCamera() {
-            camFacing = camFacing === 'user' ? 'environment' : 'user';
-            closeCamera();
-            openDirectCamera();
-        }
-
-        function captureDirectPhoto() {
-            const vid = document.getElementById('camPreview');
-            const canvas = document.createElement('canvas');
-            canvas.width = vid.videoWidth || 640;
-            canvas.height = vid.videoHeight || 480;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            socket.emit('send-private-message', {
-                senderName: myName,
-                targetName: selectedTargetUser,
-                mediaType: 'image',
-                mediaUrl: dataUrl,
-                isViewOnce: isViewOnceActive,
-                clientTime: clientTime
-            });
-
-            if (isViewOnceActive) toggleViewOnce();
-            closeCamera();
-        }
-
-        async function toggleRecordAudio() {
-            if(!selectedTargetUser) return alert('Select user first!');
-            const btn = document.getElementById('voiceBtn');
-            
-            if(!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            socket.emit('send-private-message', {
-                                senderName: myName,
-                                targetName: selectedTargetUser,
-                                mediaType: 'audio',
-                                mediaUrl: e.target.result,
-                                isViewOnce: false,
-                                clientTime: clientTime
-                            });
-                        };
-                        reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
-                    };
-                    mediaRecorder.start();
-                    isRecording = true;
-                    btn.style.color = 'red';
-                } catch(err) {
-                    alert('Microphone Access Denied!');
-                }
-            } else {
-                mediaRecorder.stop();
-                isRecording = false;
-                btn.style.color = 'var(--text-secondary)';
-            }
         }
 
         socket.on('user-typing-status', (data) => {
@@ -1083,7 +1147,7 @@
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
+                video: video ? { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: facing } : false
             });
         }
 
