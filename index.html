@@ -191,16 +191,17 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
+        /* VIDEO CALL STYLES OPTIMIZED */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; }
         #pipVideo {
-            position: absolute; top: 80px; right: 20px; width: 130px; height: 180px;
+            position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
-            z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none;
+            z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none; background: #222;
         }
         .call-top-bar {
             position: relative; z-index: 10; width: 100%; padding: 20px;
@@ -453,15 +454,23 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
+        // WebRTC Variables
         let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
         let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
+        let iceCandidateQueue = [];
 
         let camStream = null, camFacing = 'environment';
         let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
         let lastX = 0, lastY = 0;
 
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const rtcConfig = { 
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ] 
+        };
 
         const emojiList = [
             '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','🥹','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗',
@@ -751,7 +760,7 @@
 
                 if(msg.isViewOnce) {
                     if (msg.isOpened) {
-                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁️️‍🗨️ Opened</div>`;
+                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁‍🗨️ Opened</div>`;
                     } else {
                         html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁️‍🗨️ View Once Photo</div>`;
                     }
@@ -894,12 +903,11 @@
             document.getElementById('cameraModal').style.display = 'flex';
             try {
                 camStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: camFacing }, 
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: camFacing }, 
                     audio: false 
                 });
                 const camVid = document.getElementById('camPreview');
                 camVid.srcObject = camStream;
-                camVid.style.transform = 'none';
             } catch (e) {
                 alert('Camera Access Denied!');
                 closeCamera();
@@ -920,8 +928,8 @@
         function captureDirectPhoto() {
             const vid = document.getElementById('camPreview');
             const canvas = document.createElement('canvas');
-            canvas.width = vid.videoWidth || 1920;
-            canvas.height = vid.videoHeight || 1080;
+            canvas.width = vid.videoWidth || 1280;
+            canvas.height = vid.videoHeight || 720;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
             
@@ -1160,17 +1168,22 @@
             }
         });
 
+        // ==========================================
+        // FIXED VIDEO CALL ENGINE (FULLY REFACTORED)
+        // ==========================================
+
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
                 audio: { 
                     echoCancellation: true, 
                     noiseSuppression: true, 
-                    autoGainControl: true,
-                    googEchoCancellation: true,
-                    googAutoGainControl: true,
-                    googNoiseSuppression: true
+                    autoGainControl: true
                 },
-                video: video ? { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: facing } : false
+                video: video ? { 
+                    width: { ideal: 1280 }, 
+                    height: { ideal: 720 }, 
+                    facingMode: facing 
+                } : false
             });
         }
 
@@ -1212,9 +1225,43 @@
             document.addEventListener('touchend', onEnd);
         }
 
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            iceCandidateQueue = [];
+
+            peerConnection.ontrack = (e) => {
+                if (e.streams && e.streams[0]) {
+                    remoteStream = e.streams[0];
+                    assignStreamViews();
+                }
+            };
+
+            peerConnection.onicecandidate = (e) => {
+                if (e.candidate) {
+                    socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
+                }
+            };
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+        }
+
+        async function processIceQueue() {
+            while (iceCandidateQueue.length > 0) {
+                const candidate = iceCandidateQueue.shift();
+                try {
+                    await peerConnection.addIceCandidate(candidate);
+                } catch (err) {
+                    console.error('Error adding ICE Candidate:', err);
+                }
+            }
+        }
+
         async function startCall(videoMode) {
             if(!selectedTargetUser) return alert('Select user to call!');
             isVideoCall = videoMode;
+            isMainVideoRemote = true;
 
             socket.emit('send-private-message', {
                 senderName: myName,
@@ -1230,20 +1277,18 @@
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
-            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            assignStreamViews();
+            try {
+                localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                assignStreamViews();
+                createPeerConnection();
 
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
-            peerConnection.onicecandidate = e => {
-                if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
-            };
-
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            socket.emit('call-user', { targetName: selectedTargetUser, offer, isVideo: isVideoCall });
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('call-user', { targetName: selectedTargetUser, offer, isVideo: isVideoCall });
+            } catch (err) {
+                alert('Could not start call. Camera/Microphone access error.');
+                endCallUI();
+            }
         }
 
         socket.on('incoming-call', async (data) => {
@@ -1271,30 +1316,39 @@
             document.getElementById('activeCallControls').style.display = 'flex';
             document.getElementById('callStatusText').innerText = 'Connected';
 
-            socket.emit('call-accepted-signal', { targetName: selectedTargetUser });
+            try {
+                localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                assignStreamViews();
+                createPeerConnection();
 
-            localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
+                await processIceQueue();
 
-            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
-            peerConnection.onicecandidate = e => {
-                if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
-            };
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
 
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingOffer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            socket.emit('answer-call', { targetName: selectedTargetUser, answer });
+                socket.emit('answer-call', { targetName: selectedTargetUser, answer });
+            } catch (err) {
+                alert('Call connection failed');
+                endCall();
+            }
         }
 
         socket.on('call-accepted', async (data) => {
             document.getElementById('callStatusText').innerText = 'Connected';
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                await processIceQueue();
+            }
         });
 
         socket.on('ice-candidate', async (data) => {
-            if(peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            const candidate = new RTCIceCandidate(data.candidate);
+            if (peerConnection && peerConnection.remoteDescription) {
+                await peerConnection.addIceCandidate(candidate);
+            } else {
+                iceCandidateQueue.push(candidate);
+            }
         });
 
         socket.on('call-ended', () => endCallUI());
@@ -1302,30 +1356,42 @@
         function assignStreamViews() {
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
-            
-            mainVid.style.transform = 'none';
-            pipVid.style.transform = 'none';
 
             if (isMainVideoRemote) {
-                if (remoteStream) mainVid.srcObject = remoteStream;
-                if (localStream) pipVid.srcObject = localStream;
+                mainVid.srcObject = remoteStream || null;
+                pipVid.srcObject = localStream || null;
             } else {
-                if (localStream) mainVid.srcObject = localStream;
-                if (remoteStream) pipVid.srcObject = remoteStream;
+                mainVid.srcObject = localStream || null;
+                pipVid.srcObject = remoteStream || null;
             }
         }
 
-        function swapVideoViews() { isMainVideoRemote = !isMainVideoRemote; assignStreamViews(); }
+        function swapVideoViews() { 
+            isMainVideoRemote = !isMainVideoRemote; 
+            assignStreamViews(); 
+        }
 
         async function switchCamera() {
             if (!isVideoCall || !localStream) return;
             currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-            localStream.getTracks().forEach(track => track.stop());
-            localStream = await getHDMediaStream(true, currentFacingMode);
-            const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-            if (sender) sender.replaceTrack(videoTrack);
-            assignStreamViews();
+            
+            localStream.getVideoTracks().forEach(track => track.stop());
+            
+            try {
+                const newStream = await getHDMediaStream(true, currentFacingMode);
+                const newVideoTrack = newStream.getVideoTracks()[0];
+                
+                localStream.removeTrack(localStream.getVideoTracks()[0]);
+                localStream.addTrack(newVideoTrack);
+
+                const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(newVideoTrack);
+                }
+                assignStreamViews();
+            } catch(e) {
+                console.error("Camera switch error:", e);
+            }
         }
 
         function promptScreenShare() {
@@ -1345,23 +1411,32 @@
                 try {
                     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
                     if (sender) sender.replaceTrack(screenTrack);
+                    
                     document.getElementById('mainVideo').srcObject = screenStream;
                     isScreenSharing = true;
-                    screenTrack.onended = () => executeScreenShare();
+
+                    screenTrack.onended = () => {
+                        stopScreenSharing();
+                    };
                 } catch(err) { console.log('Screen sharing cancelled'); }
             } else {
-                const videoTrack = localStream.getVideoTracks()[0];
-                const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-                if (sender) sender.replaceTrack(videoTrack);
-                assignStreamViews();
-                isScreenSharing = false;
+                stopScreenSharing();
             }
         }
 
+        function stopScreenSharing() {
+            if (!isScreenSharing) return;
+            const videoTrack = localStream.getVideoTracks()[0];
+            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender && videoTrack) sender.replaceTrack(videoTrack);
+            assignStreamViews();
+            isScreenSharing = false;
+        }
+
         function toggleMuteMic() {
-            if (localStream) {
+            if (localStream && localStream.getAudioTracks().length > 0) {
                 isMicMuted = !isMicMuted;
                 localStream.getAudioTracks()[0].enabled = !isMicMuted;
                 document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙';
@@ -1374,9 +1449,18 @@
         }
 
         function endCallUI() {
-            if(peerConnection) peerConnection.close();
-            if(localStream) localStream.getTracks().forEach(track => track.stop());
-            peerConnection = null; localStream = null; remoteStream = null;
+            if(peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if(localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            remoteStream = null;
+            isScreenSharing = false;
+            isMicMuted = false;
+            document.getElementById('btnMuteMic').innerText = '🎙';
             document.getElementById('callModal').style.display = 'none';
         }
     </script>
