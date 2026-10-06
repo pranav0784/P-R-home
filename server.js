@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
 
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
-        if (!username) return socket.emit('login-failed', 'Username zaroori hai!');
+        if (!username) return socket.emit('login-failed', 'Username is required!');
 
         let isAdmin = false;
         const isExistingUser = !!registeredUsers[username];
@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
             } else if (inputCode === currentDynamicCode) {
                 isAdmin = false;
             } else {
-                return socket.emit('login-failed', 'अमान्य पासकोड (Invalid Passcode)!');
+                return socket.emit('login-failed', 'Invalid Passcode!');
             }
         }
 
@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
             saveData();
             
             const targetSocketId = getUserSocketId(userToKick);
-            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
+            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the admin.');
             updateUserList();
         }
     });
