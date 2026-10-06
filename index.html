@@ -191,7 +191,7 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* VIDEO CALL STYLES OPTIMIZED */
+        /* VIDEO CALL STYLES */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
@@ -480,9 +480,9 @@
 
         window.onload = () => {
             const savedName = localStorage.getItem('quantum_username');
-            const savedCode = localStorage.getItem('quantum_passcode');
+            const savedCode = localStorage.getItem('quantum_passcode') || '';
             const savedAvatar = localStorage.getItem('quantum_avatar');
-            if(savedName && savedCode) {
+            if(savedName) {
                 document.getElementById('inputName').value = savedName;
                 document.getElementById('inputCode').value = savedCode;
                 if(savedAvatar) document.getElementById('inputAvatar').value = savedAvatar;
@@ -515,13 +515,13 @@
             const code = document.getElementById('inputCode').value.trim();
             let avatar = document.getElementById('inputAvatar').value.trim();
             
-            if(!myName || !code) return isAuto ? null : alert('Username & Passcode are required!');
+            if(!myName) return alert('Username is required!');
 
             const savedAvatar = localStorage.getItem('quantum_avatar');
             if (!avatar && savedAvatar) avatar = savedAvatar;
 
             localStorage.setItem('quantum_username', myName);
-            localStorage.setItem('quantum_passcode', code);
+            if(code) localStorage.setItem('quantum_passcode', code);
             if(avatar) localStorage.setItem('quantum_avatar', avatar);
 
             socket.emit('login-attempt', { username: myName, inputCode: code, avatarUrl: avatar });
@@ -536,6 +536,7 @@
             
             localStorage.setItem('quantum_avatar', data.avatarUrl);
             if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
+            else document.getElementById('adminBox').style.display = 'none';
         });
 
         socket.on('login-failed', msg => alert(msg));
@@ -548,7 +549,7 @@
                 document.getElementById('customCodeInput').value = '';
             }
         }
-        socket.on('code-updated', (data) => alert(`Passcode Updated: ${data.newCode}`));
+        socket.on('code-updated', (data) => alert(`New Passcode Set: ${data.newCode}`));
 
         function updateProfileLogo(input) {
             if (input.files && input.files[0]) {
@@ -589,7 +590,7 @@
                         </div>
                         ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
                         ${u.isOnline ? '<div class="online-dot" style="margin-left:6px;"></div>' : ''}
-                        ${amIAdmin && !u.isAdmin ? `<button class="kick-btn" style="margin-left:8px;" onclick="event.stopPropagation(); removeUser('${u.username}')">❌</button>` : ''}
+                        ${amIAdmin ? `<button class="kick-btn" style="margin-left:8px;" onclick="event.stopPropagation(); removeUser('${u.username}')">❌ Kick</button>` : ''}
                     `;
                     div.onclick = () => selectTargetUser(u);
                     container.appendChild(div);
@@ -598,11 +599,13 @@
         });
 
         function removeUser(targetUsername) {
-            if(confirm(`Remove ${targetUsername}?`)) socket.emit('remove-user-by-admin', { targetUsername });
+            if(confirm(`Remove/Kick ${targetUsername}?`)) {
+                socket.emit('remove-user-by-admin', { targetUsername });
+            }
         }
 
         socket.on('kicked-by-admin', (msg) => {
-            localStorage.clear();
+            localStorage.removeItem('quantum_passcode');
             alert(msg);
             location.reload();
         });
@@ -762,7 +765,7 @@
                     if (msg.isOpened) {
                         html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁‍🗨️ Opened</div>`;
                     } else {
-                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁️️‍🗨️ View Once Photo</div>`;
+                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁‍🗨️ View Once Photo</div>`;
                     }
                 } else {
                     if(msg.mediaType === 'text') html += msg.message;
@@ -1168,22 +1171,11 @@
             }
         });
 
-        // ==========================================
-        // WEBRTC CALL ENGINE (VOICE & VIDEO)
-        // ==========================================
-
+        // WebRTC Call Logic
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true
-                },
-                video: video ? { 
-                    width: { ideal: 1280 }, 
-                    height: { ideal: 720 }, 
-                    facingMode: facing 
-                } : false
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
             });
         }
 
@@ -1250,11 +1242,7 @@
         async function processIceQueue() {
             while (iceCandidateQueue.length > 0) {
                 const candidate = iceCandidateQueue.shift();
-                try {
-                    await peerConnection.addIceCandidate(candidate);
-                } catch (err) {
-                    console.error('Error adding ICE Candidate:', err);
-                }
+                try { await peerConnection.addIceCandidate(candidate); } catch (err) {}
             }
         }
 
@@ -1286,7 +1274,7 @@
                 await peerConnection.setLocalDescription(offer);
                 socket.emit('call-user', { targetName: selectedTargetUser, offer, isVideo: isVideoCall });
             } catch (err) {
-                alert('Could not start call. Camera/Microphone access error.');
+                alert('Could not start call.');
                 endCallUI();
             }
         }
@@ -1389,9 +1377,7 @@
                     sender.replaceTrack(newVideoTrack);
                 }
                 assignStreamViews();
-            } catch(e) {
-                console.error("Camera switch error:", e);
-            }
+            } catch(e) {}
         }
 
         function promptScreenShare() {
@@ -1417,10 +1403,8 @@
                     document.getElementById('mainVideo').srcObject = screenStream;
                     isScreenSharing = true;
 
-                    screenTrack.onended = () => {
-                        stopScreenSharing();
-                    };
-                } catch(err) { console.log('Screen sharing cancelled'); }
+                    screenTrack.onended = () => { stopScreenSharing(); };
+                } catch(err) {}
             } else {
                 stopScreenSharing();
             }
