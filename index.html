@@ -323,7 +323,7 @@
 
         <div class="video-full-container" id="videoContainer">
             <video id="mainVideo" autoplay playsinline></video>
-            <video id="pipVideo" autoplay playsinline muted></video>
+            <video id="pipVideo" autoplay playsinline></video>
         </div>
 
         <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
@@ -1147,13 +1147,10 @@
                 audio: { 
                     echoCancellation: true, 
                     noiseSuppression: true, 
-                    autoGainControl: true 
+                    autoGainControl: true,
+                    googEchoCancellation: true
                 },
-                video: video ? { 
-                    width: { ideal: 1920 }, 
-                    height: { ideal: 1080 }, 
-                    facingMode: facing 
-                } : false
+                video: video ? { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: facing } : false
             });
         }
 
@@ -1219,7 +1216,10 @@
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
+            peerConnection.ontrack = e => { 
+                remoteStream = e.streams[0]; 
+                assignStreamViews(); 
+            };
             peerConnection.onicecandidate = e => {
                 if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
             };
@@ -1260,7 +1260,10 @@
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
+            peerConnection.ontrack = e => { 
+                remoteStream = e.streams[0]; 
+                assignStreamViews(); 
+            };
             peerConnection.onicecandidate = e => {
                 if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
             };
@@ -1285,14 +1288,25 @@
         function assignStreamViews() {
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
-            const localTransform = 'none'; 
-
+            
             if (isMainVideoRemote) {
-                if (remoteStream) { mainVid.srcObject = remoteStream; mainVid.style.transform = 'none'; }
-                if (localStream) { pipVid.srcObject = localStream; pipVid.style.transform = localTransform; }
+                if (remoteStream) { 
+                    mainVid.srcObject = remoteStream; 
+                    mainVid.muted = false; 
+                }
+                if (localStream) { 
+                    pipVid.srcObject = localStream; 
+                    pipVid.muted = true; // Crucial: Mute local playback to avoid echo/feedback loops
+                }
             } else {
-                if (localStream) { mainVid.srcObject = localStream; mainVid.style.transform = localTransform; }
-                if (remoteStream) { pipVid.srcObject = remoteStream; pipVid.style.transform = 'none'; }
+                if (localStream) { 
+                    mainVid.srcObject = localStream; 
+                    mainVid.muted = true; 
+                }
+                if (remoteStream) { 
+                    pipVid.srcObject = remoteStream; 
+                    pipVid.muted = false; 
+                }
             }
         }
 
@@ -1304,36 +1318,41 @@
             localStream.getTracks().forEach(track => track.stop());
             localStream = await getHDMediaStream(true, currentFacingMode);
             const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
             if (sender) sender.replaceTrack(videoTrack);
             assignStreamViews();
         }
 
         async function toggleScreenShare() {
-            if (!peerConnection) return;
+            if (!peerConnection) return alert('No active call to share screen!');
             
             if (!isScreenSharing) {
-                const confirmShare = confirm("Do you want to share your screen?");
-                if (!confirmShare) return;
-
+                if (!confirm('Do you want to share your screen?')) return;
                 try {
                     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
                     if (sender) sender.replaceTrack(screenTrack);
+                    
                     document.getElementById('mainVideo').srcObject = screenStream;
-                    document.getElementById('mainVideo').style.transform = 'none';
                     isScreenSharing = true;
-                    screenTrack.onended = () => toggleScreenShare();
-                } catch(err) { 
-                    console.log('Screen sharing cancelled'); 
+                    
+                    screenTrack.onended = () => {
+                        toggleScreenShare();
+                    };
+                } catch(err) {
+                    console.log('Screen sharing cancelled or not supported', err);
                 }
             } else {
-                const videoTrack = localStream.getVideoTracks()[0];
-                const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
-                if (sender) sender.replaceTrack(videoTrack);
-                assignStreamViews();
-                isScreenSharing = false;
+                try {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(videoTrack);
+                    assignStreamViews();
+                    isScreenSharing = false;
+                } catch(err) {
+                    console.log('Error reverting screen share', err);
+                }
             }
         }
 
