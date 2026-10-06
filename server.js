@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
             saveData();
             
             const targetSocketId = getUserSocketId(userToKick);
-            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the admin.');
+            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the administrator.');
             updateUserList();
         }
     });
