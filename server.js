@@ -20,36 +20,27 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// JSON File Persistence Paths
+// Persistent Storage Files
 const USERS_FILE = path.join(__dirname, 'users.json');
-const CHAT_FILE = path.join(__dirname, 'messages.json');
+const CHATS_FILE = path.join(__dirname, 'chats.json');
 
-// Helper Functions to Load/Save Data
-function loadJSON(filepath, defaultValue) {
-    try {
-        if (fs.existsSync(filepath)) {
-            const data = fs.readFileSync(filepath, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (err) {
-        console.error(`Error reading ${filepath}:`, err);
-    }
-    return defaultValue;
+let registeredUsers = {}; 
+let chatHistory = [];       
+
+// Load Data from JSON files if exist
+if (fs.existsSync(USERS_FILE)) {
+    try { registeredUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { registeredUsers = {}; }
+}
+if (fs.existsSync(CHATS_FILE)) {
+    try { chatHistory = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8')); } catch(e) { chatHistory = []; }
 }
 
-function saveJSON(filepath, data) {
-    try {
-        fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        console.error(`Error writing ${filepath}:`, err);
-    }
+function saveData() {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(registeredUsers, null, 2));
+    fs.writeFileSync(CHATS_FILE, JSON.stringify(chatHistory, null, 2));
 }
 
-// Data Structures
-let registeredUsers = loadJSON(USERS_FILE, {}); // { username: { username, avatarUrl, isAdmin, lastSeen } }
-let chatHistory = loadJSON(CHAT_FILE, []);       // Message history
-const activeSockets = {};                       // { socketId: username }
-
+const activeSockets = {};   
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
@@ -76,8 +67,7 @@ io.on('connection', (socket) => {
 
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
-        
-        if (!username) return socket.emit('login-failed', 'Username ज़रूरी है!');
+        if (!username) return socket.emit('login-failed', 'Username zaroori hai!');
 
         let isAdmin = false;
         const isExistingUser = !!registeredUsers[username];
@@ -102,8 +92,7 @@ io.on('connection', (socket) => {
             if (avatarUrl) registeredUsers[username].avatarUrl = avatarUrl;
             registeredUsers[username].lastSeen = 'Online';
         }
-
-        saveJSON(USERS_FILE, registeredUsers);
+        saveData();
 
         activeSockets[socket.id] = username;
         socket.join(username);
@@ -118,9 +107,7 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
-    socket.on('request-user-list', () => {
-        updateUserList();
-    });
+    socket.on('request-user-list', () => { updateUserList(); });
 
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
@@ -143,12 +130,10 @@ io.on('connection', (socket) => {
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
-            saveJSON(USERS_FILE, registeredUsers);
+            saveData();
             
             const targetSocketId = getUserSocketId(userToKick);
-            if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
-            }
+            if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'आपको एडमिन द्वारा हटा दिया गया है।');
             updateUserList();
         }
     });
@@ -156,7 +141,7 @@ io.on('connection', (socket) => {
     socket.on('update-avatar', (data) => {
         if (registeredUsers[data.username]) {
             registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
-            saveJSON(USERS_FILE, registeredUsers);
+            saveData();
             updateUserList();
         }
     });
@@ -171,14 +156,14 @@ io.on('connection', (socket) => {
             message: data.message || '',
             mediaType: data.mediaType || null,
             mediaUrl: data.mediaUrl || null,
+            replyTo: data.replyTo || null,
             isViewOnce: !!data.isViewOnce,
             isOpened: false,
-            replyTo: data.replyTo || null,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
         };
 
         chatHistory.push(msgObject);
-        saveJSON(CHAT_FILE, chatHistory);
+        saveData();
 
         io.to(data.targetName).emit('receive-private-message', msgObject);
         if (data.senderName !== data.targetName) {
@@ -187,24 +172,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('mark-messages-read', (data) => {
-        let changed = false;
         chatHistory.forEach(m => {
-            if (m.senderName === data.senderName && m.targetName === data.readerName && !m.isRead) {
+            if (m.senderName === data.senderName && m.targetName === data.readerName) {
                 m.isRead = true;
-                changed = true;
+                m.isDelivered = true;
             }
         });
-        if (changed) {
-            saveJSON(CHAT_FILE, chatHistory);
-            io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
-        }
+        saveData();
+        io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
     });
 
     socket.on('mark-viewonce-opened', (data) => {
         const msg = chatHistory.find(m => m.msgId === data.msgId);
-        if (msg) {
+        if(msg) {
             msg.isOpened = true;
-            saveJSON(CHAT_FILE, chatHistory);
+            saveData();
             io.to(msg.senderName).emit('viewonce-opened-update', { msgId: data.msgId });
             io.to(msg.targetName).emit('viewonce-opened-update', { msgId: data.msgId });
         }
@@ -212,19 +194,8 @@ io.on('connection', (socket) => {
 
     socket.on('delete-message-everyone', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
-        saveJSON(CHAT_FILE, chatHistory);
+        saveData();
         io.emit('message-deleted-everyone', { msgId: data.msgId });
-    });
-
-    socket.on('clear-chat-history', (data) => {
-        const { user1, user2 } = data;
-        chatHistory = chatHistory.filter(m => 
-            !((m.senderName === user1 && m.targetName === user2) || 
-              (m.senderName === user2 && m.targetName === user1))
-        );
-        saveJSON(CHAT_FILE, chatHistory);
-        io.to(user1).emit('load-chat-history', chatHistory);
-        io.to(user2).emit('load-chat-history', chatHistory);
     });
 
     socket.on('typing', (data) => {
@@ -240,57 +211,44 @@ io.on('connection', (socket) => {
         if (data.targetName) {
             io.to(data.targetName).emit('wb-draw-receive', {
                 senderName: activeSockets[socket.id],
-                x0: data.x0, y0: data.y0,
-                x1: data.x1, y1: data.y1,
-                color: data.color,
-                size: data.size
+                x0: data.x0, y0: data.y0, x1: data.x1, y1: data.y1,
+                color: data.color, size: data.size
             });
         }
     });
 
     socket.on('wb-clear-data', (data) => {
         if (data.targetName) {
-            io.to(data.targetName).emit('wb-clear-receive', {
-                senderName: activeSockets[socket.id]
-            });
+            io.to(data.targetName).emit('wb-clear-receive', { senderName: activeSockets[socket.id] });
         }
     });
 
     socket.on('call-user', (data) => {
         if (data.targetName) {
-            io.to(data.targetName).emit('incoming-call', { 
-                fromUser: activeSockets[socket.id], 
-                offer: data.offer, 
-                isVideo: data.isVideo 
-            });
+            io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
         }
     });
 
     socket.on('answer-call', (data) => {
-        if (data.targetName) {
-            io.to(data.targetName).emit('call-accepted', { answer: data.answer });
-        }
+        if (data.targetName) io.to(data.targetName).emit('call-accepted', { answer: data.answer });
     });
 
     socket.on('ice-candidate', (data) => {
-        if (data.targetName) {
-            io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
-        }
+        if (data.targetName) io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
     });
 
     socket.on('end-call', (data) => {
-        if (data.targetName) {
-            io.to(data.targetName).emit('call-ended');
-        }
+        if (data.targetName) io.to(data.targetName).emit('call-ended');
     });
 
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = new Date().toLocaleDateString();
             if (registeredUsers[username]) {
-                registeredUsers[username].lastSeen = `today at ${timeStr}`;
-                saveJSON(USERS_FILE, registeredUsers);
+                registeredUsers[username].lastSeen = `last seen today at ${timeStr}`;
+                saveData();
             }
             delete activeSockets[socket.id];
             updateUserList();
