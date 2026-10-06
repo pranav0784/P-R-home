@@ -762,7 +762,7 @@
                     if (msg.isOpened) {
                         html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁‍🗨️ Opened</div>`;
                     } else {
-                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁️‍🗨️ View Once Photo</div>`;
+                        html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁️️‍🗨️ View Once Photo</div>`;
                     }
                 } else {
                     if(msg.mediaType === 'text') html += msg.message;
@@ -1169,7 +1169,7 @@
         });
 
         // ==========================================
-        // FIXED VIDEO CALL ENGINE (FULLY REFACTORED)
+        // WEBRTC CALL ENGINE (VOICE & VIDEO)
         // ==========================================
 
         async function getHDMediaStream(video, facing) {
@@ -1273,7 +1273,7 @@
 
             document.getElementById('callModal').style.display = 'flex';
             document.getElementById('callTargetName').innerText = selectedTargetUser;
-            document.getElementById('callStatusText').innerText = 'Ringing...';
+            document.getElementById('callStatusText').innerText = 'Calling...';
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
