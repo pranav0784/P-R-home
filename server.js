@@ -3,39 +3,46 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const admin = require('firebase-admin');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
-// Firebase Initialization
-let serviceAccount = null;
-const secretPath = '/etc/secrets/serviceAccountKey.json';
-const localPath = path.join(__dirname, 'serviceAccountKey.json');
-
-if (fs.existsSync(secretPath)) {
-    try { serviceAccount = require(secretPath); } catch (e) {}
-} else if (fs.existsSync(localPath)) {
-    try { serviceAccount = require(localPath); } catch (e) {}
-} else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try { serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); } catch (e) {}
+// 1. Firebase Admin Initialisation (Render Secret / Local Support)
+let serviceAccount;
+try {
+    serviceAccount = require('/etc/secrets/serviceAccountKey.json');
+} catch (e) {
+    try {
+        serviceAccount = require('./serviceAccountKey.json');
+    } catch (err) {
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            try {
+                serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            } catch (pErr) {
+                console.log("Error parsing FIREBASE_SERVICE_ACCOUNT env var.");
+            }
+        }
+        if (!serviceAccount) {
+            console.log("Firebase key file/env not found. Running with in-memory mode.");
+        }
+    }
 }
 
 if (serviceAccount) {
     try {
-        if (!admin.apps.length) {
-            admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-        }
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
         console.log("🔥 Firebase Admin Initialized Successfully!");
     } catch (fErr) {
-        console.error("Firebase Init Error:", fErr);
+        console.error("Firebase Initialization Error:", fErr);
     }
 }
 
 const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8,
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
@@ -47,8 +54,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const activeSockets = {}; 
-const userDetails = {};   
+const activeSockets = {}; // socket.id -> username
+const userDetails = {};   // username -> { username, avatarUrl, isAdmin, isApproved, lastSeen }
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
 
@@ -68,10 +75,11 @@ async function syncUsersFromDB() {
     try {
         const snapshot = await db.collection('users').get();
         snapshot.forEach(doc => {
-            userDetails[doc.id] = doc.data();
+            const data = doc.data();
+            userDetails[doc.id] = data;
         });
     } catch (e) {
-        console.error("Error fetching users:", e);
+        console.error("Error fetching users DB:", e);
     }
 }
 
@@ -85,7 +93,6 @@ async function broadcastUserList() {
     io.emit('update-user-list', list);
 }
 
-// परमानेंट डेटाबेस से चैट हिस्ट्री लाने का फंक्शन
 async function getChatHistoryFromDB() {
     if (!db) return [];
     try {
@@ -96,7 +103,7 @@ async function getChatHistoryFromDB() {
         });
         return history;
     } catch (e) {
-        console.error("Error fetching chats from DB:", e);
+        console.error("Error fetching chats:", e);
         return [];
     }
 }
@@ -136,11 +143,7 @@ io.on('connection', (socket) => {
         userDetails[username] = userObj;
 
         if (db) {
-            try {
-                await db.collection('users').doc(username).set(userObj, { merge: true });
-            } catch (err) {
-                console.error("Error saving user:", err);
-            }
+            await db.collection('users').doc(username).set(userObj, { merge: true });
         }
 
         activeSockets[socket.id] = username;
@@ -154,7 +157,6 @@ io.on('connection', (socket) => {
             avatarUrl: userObj.avatarUrl
         });
 
-        // जैसे ही यूज़र जुड़ेगा, डेटाबेस से परमानेंट चैट हिस्ट्री तुरंत लोड होकर जाएगी
         const chatHistory = await getChatHistoryFromDB();
         socket.emit('load-chat-history', chatHistory);
         await broadcastUserList();
@@ -184,13 +186,15 @@ io.on('connection', (socket) => {
         const requestingUser = activeSockets[socket.id];
         if (requestingUser && userDetails[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
+            
             delete userDetails[userToKick];
             if (db) {
-                try { await db.collection('users').doc(userToKick).delete(); } catch (e) {}
+                await db.collection('users').doc(userToKick).delete();
             }
+            
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
-                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है।');
+                io.to(targetSocketId).emit('kicked-by-admin', 'Administrator ने आपको रिमूव कर दिया है। अब दोबारा जुड़ने के लिए नया कोड दर्ज करें।');
             }
             await broadcastUserList();
         }
@@ -201,12 +205,11 @@ io.on('connection', (socket) => {
             userDetails[data.username].avatarUrl = data.newAvatarUrl;
         }
         if (db) {
-            try { await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl }); } catch (e) {}
+            await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
         }
         await broadcastUserList();
     });
 
-    // मैसेज सीधे परमानेंट डेटाबेस (Firestore) में स्टोर होंगे
     socket.on('send-private-message', async (data) => {
         if (!data.targetName || !data.senderName) return;
 
@@ -220,18 +223,12 @@ io.on('connection', (socket) => {
             replyTo: data.replyTo || null,
             isViewOnce: !!data.isViewOnce,
             isOpened: false,
-            isRead: false,
-            isDelivered: false,
             time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
             timestamp: Date.now()
         };
 
         if (db) {
-            try {
-                await db.collection('chats').doc(msgId).set(msgObject);
-            } catch (err) {
-                console.error("Error saving message in DB:", err);
-            }
+            await db.collection('chats').doc(msgId).set(msgObject);
         }
 
         const clientPayload = { msgId, ...msgObject };
@@ -244,31 +241,30 @@ io.on('connection', (socket) => {
 
     socket.on('mark-messages-read', async (data) => {
         if (db) {
-            try {
-                const snapshot = await db.collection('chats')
-                    .where('senderName', '==', data.senderName)
-                    .where('targetName', '==', data.readerName)
-                    .get();
-                const batch = db.batch();
-                snapshot.docs.forEach(doc => {
-                    batch.update(doc.ref, { isRead: true, isDelivered: true });
-                });
-                await batch.commit();
-            } catch (e) {}
+            const snapshot = await db.collection('chats')
+                .where('senderName', '==', data.senderName)
+                .where('targetName', '==', data.readerName)
+                .get();
+            
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { isRead: true, isDelivered: true });
+            });
+            await batch.commit();
         }
         io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
     });
 
     socket.on('mark-viewonce-opened', async (data) => {
         if (db) {
-            try { await db.collection('chats').doc(data.msgId).update({ isOpened: true }); } catch (e) {}
+            await db.collection('chats').doc(data.msgId).update({ isOpened: true });
         }
         io.emit('viewonce-opened-update', { msgId: data.msgId });
     });
 
     socket.on('delete-message-everyone', async (data) => {
         if (db) {
-            try { await db.collection('chats').doc(data.msgId).delete(); } catch (e) {}
+            await db.collection('chats').doc(data.msgId).delete();
         }
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
@@ -331,11 +327,9 @@ io.on('connection', (socket) => {
                 userDetails[username].lastSeen = `last seen today at ${timeStr}`;
             }
             if (db) {
-                try {
-                    await db.collection('users').doc(username).update({
-                        lastSeen: `last seen today at ${timeStr}`
-                    });
-                } catch (e) {}
+                await db.collection('users').doc(username).update({
+                    lastSeen: `last seen today at ${timeStr}`
+                });
             }
             delete activeSockets[socket.id];
             await broadcastUserList();
