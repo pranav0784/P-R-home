@@ -2,10 +2,31 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const fs = require('fs');
+const admin = require('firebase-admin');
 
 const app = express();
 const server = http.createServer(app);
+
+// 1. Firebase Admin Initialisation (Render Secret / Local Support)
+let serviceAccount;
+try {
+    serviceAccount = require('/etc/secrets/serviceAccountKey.json');
+} catch (e) {
+    try {
+        serviceAccount = require('./serviceAccountKey.json');
+    } catch (err) {
+        console.log("Firebase key file not found. Running without Firebase fallback.");
+    }
+}
+
+if (serviceAccount) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("🔥 Firebase Admin Initialized Successfully!");
+}
+
+const db = serviceAccount ? admin.firestore() : null;
 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8, // 100MB
@@ -19,24 +40,6 @@ app.use(express.static(path.join(__dirname)));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-const USERS_FILE = path.join(__dirname, 'users.json');
-const CHATS_FILE = path.join(__dirname, 'chats.json');
-
-let registeredUsers = {}; 
-let chatHistory = [];       
-
-if (fs.existsSync(USERS_FILE)) {
-    try { registeredUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { registeredUsers = {}; }
-}
-if (fs.existsSync(CHATS_FILE)) {
-    try { chatHistory = JSON.parse(fs.readFileSync(CHATS_FILE, 'utf8')); } catch(e) { chatHistory = []; }
-}
-
-function saveData() {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(registeredUsers, null, 2));
-    fs.writeFileSync(CHATS_FILE, JSON.stringify(chatHistory, null, 2));
-}
 
 const activeSockets = {};   
 const MASTER_ADMIN_CODE = "guddu05";
@@ -53,7 +56,23 @@ function getUserSocketId(username) {
     return null;
 }
 
-function updateUserList() {
+async function getUsersFromDB() {
+    if (!db) return {};
+    try {
+        const snapshot = await db.collection('users').get();
+        let users = {};
+        snapshot.forEach(doc => {
+            users[doc.id] = doc.data();
+        });
+        return users;
+    } catch (e) {
+        console.error("Error fetching users from DB:", e);
+        return {};
+    }
+}
+
+async function updateUserList() {
+    const registeredUsers = await getUsersFromDB();
     const list = Object.values(registeredUsers).map(user => ({
         ...user,
         isOnline: Object.values(activeSockets).includes(user.username)
@@ -61,12 +80,28 @@ function updateUserList() {
     io.emit('update-user-list', list);
 }
 
+async function getChatHistoryFromDB() {
+    if (!db) return [];
+    try {
+        const snapshot = await db.collection('chats').orderBy('timestamp', 'asc').get();
+        let history = [];
+        snapshot.forEach(doc => {
+            history.push({ msgId: doc.id, ...doc.data() });
+        });
+        return history;
+    } catch (e) {
+        console.error("Error fetching chats from DB:", e);
+        return [];
+    }
+}
+
 io.on('connection', (socket) => {
 
-    socket.on('login-attempt', (data) => {
+    socket.on('login-attempt', async (data) => {
         const { username, inputCode, avatarUrl } = data;
         if (!username) return socket.emit('login-failed', 'Username is required!');
 
+        const registeredUsers = await getUsersFromDB();
         let isAdmin = false;
         const isExistingUser = !!registeredUsers[username];
 
@@ -84,13 +119,16 @@ io.on('connection', (socket) => {
 
         const userAvatar = avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
 
-        if (!registeredUsers[username]) {
-            registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
-        } else {
-            if (avatarUrl) registeredUsers[username].avatarUrl = avatarUrl;
-            registeredUsers[username].lastSeen = 'Online';
+        const userData = {
+            username,
+            avatarUrl: userAvatar,
+            isAdmin,
+            lastSeen: 'Online'
+        };
+
+        if (db) {
+            await db.collection('users').doc(username).set(userData, { merge: true });
         }
-        saveData();
 
         activeSockets[socket.id] = username;
         socket.join(username);
@@ -98,57 +136,63 @@ io.on('connection', (socket) => {
         socket.emit('login-success', {
             username: username,
             isAdmin: isAdmin,
-            avatarUrl: registeredUsers[username].avatarUrl
+            avatarUrl: userData.avatarUrl
         });
 
+        const chatHistory = await getChatHistoryFromDB();
         socket.emit('load-chat-history', chatHistory);
-        updateUserList();
+        await updateUserList();
     });
 
-    socket.on('request-user-list', () => { updateUserList(); });
+    socket.on('request-user-list', async () => { 
+        await updateUserList(); 
+    });
 
-    socket.on('generate-new-code', () => {
+    socket.on('generate-new-code', async () => {
         const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]?.isAdmin) {
+        const users = await getUsersFromDB();
+        if (username && users[username]?.isAdmin) {
             currentDynamicCode = generateRandomCode();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
-    socket.on('set-custom-code', (data) => {
+    socket.on('set-custom-code', async (data) => {
         const username = activeSockets[socket.id];
-        if (username && registeredUsers[username]?.isAdmin && data.newCode) {
+        const users = await getUsersFromDB();
+        if (username && users[username]?.isAdmin && data.newCode) {
             currentDynamicCode = data.newCode.trim();
             socket.emit('code-updated', { newCode: currentDynamicCode });
         }
     });
 
-    socket.on('remove-user-by-admin', (data) => {
+    socket.on('remove-user-by-admin', async (data) => {
         const requestingUser = activeSockets[socket.id];
-        if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
+        const users = await getUsersFromDB();
+        if (requestingUser && users[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
-            delete registeredUsers[userToKick];
-            saveData();
+            if (db) {
+                await db.collection('users').doc(userToKick).delete();
+            }
             
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) io.to(targetSocketId).emit('kicked-by-admin', 'You have been removed by the administrator.');
-            updateUserList();
+            await updateUserList();
         }
     });
 
-    socket.on('update-avatar', (data) => {
-        if (registeredUsers[data.username]) {
-            registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
-            saveData();
-            updateUserList();
+    socket.on('update-avatar', async (data) => {
+        if (db) {
+            await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
+            await updateUserList();
         }
     });
 
-    socket.on('send-private-message', (data) => {
+    socket.on('send-private-message', async (data) => {
         if (!data.targetName || !data.senderName) return;
 
+        const msgId = Date.now().toString() + Math.random().toString(36).substring(2, 7);
         const msgObject = {
-            msgId: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             senderName: data.senderName,
             targetName: data.targetName,
             message: data.message || '',
@@ -157,42 +201,49 @@ io.on('connection', (socket) => {
             replyTo: data.replyTo || null,
             isViewOnce: !!data.isViewOnce,
             isOpened: false,
-            time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+            time: data.clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+            timestamp: Date.now()
         };
 
-        chatHistory.push(msgObject);
-        saveData();
+        if (db) {
+            await db.collection('chats').doc(msgId).set(msgObject);
+        }
 
-        io.to(data.targetName).emit('receive-private-message', msgObject);
+        const clientPayload = { msgId, ...msgObject };
+
+        io.to(data.targetName).emit('receive-private-message', clientPayload);
         if (data.senderName !== data.targetName) {
-            io.to(data.senderName).emit('receive-private-message', msgObject);
+            io.to(data.senderName).emit('receive-private-message', clientPayload);
         }
     });
 
-    socket.on('mark-messages-read', (data) => {
-        chatHistory.forEach(m => {
-            if (m.senderName === data.senderName && m.targetName === data.readerName) {
-                m.isRead = true;
-                m.isDelivered = true;
-            }
-        });
-        saveData();
+    socket.on('mark-messages-read', async (data) => {
+        if (db) {
+            const snapshot = await db.collection('chats')
+                .where('senderName', '==', data.senderName)
+                .where('targetName', '==', data.readerName)
+                .get();
+            
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { isRead: true, isDelivered: true });
+            });
+            await batch.commit();
+        }
         io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
     });
 
-    socket.on('mark-viewonce-opened', (data) => {
-        const msg = chatHistory.find(m => m.msgId === data.msgId);
-        if(msg) {
-            msg.isOpened = true;
-            saveData();
-            io.to(msg.senderName).emit('viewonce-opened-update', { msgId: data.msgId });
-            io.to(msg.targetName).emit('viewonce-opened-update', { msgId: data.msgId });
+    socket.on('mark-viewonce-opened', async (data) => {
+        if (db) {
+            await db.collection('chats').doc(data.msgId).update({ isOpened: true });
         }
+        io.emit('viewonce-opened-update', { msgId: data.msgId });
     });
 
-    socket.on('delete-message-everyone', (data) => {
-        chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
-        saveData();
+    socket.on('delete-message-everyone', async (data) => {
+        if (db) {
+            await db.collection('chats').doc(data.msgId).delete();
+        }
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
 
@@ -246,16 +297,17 @@ io.on('connection', (socket) => {
         if (data.targetName) io.to(data.targetName).emit('call-ended');
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-            if (registeredUsers[username]) {
-                registeredUsers[username].lastSeen = `last seen today at ${timeStr}`;
-                saveData();
+            if (db) {
+                await db.collection('users').doc(username).update({
+                    lastSeen: `last seen today at ${timeStr}`
+                });
             }
             delete activeSockets[socket.id];
-            updateUserList();
+            await updateUserList();
         }
     });
 });
