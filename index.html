@@ -443,7 +443,7 @@
         const emojiList = [
             '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','🥹','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗',
             '😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕',
-            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
+            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
         ];
 
         window.onload = () => {
@@ -762,7 +762,6 @@
 
             modal.style.display = 'flex';
             
-            // वन टाइम मीडिया में डाउनलोड बटन छुपा दिया गया है, नॉर्मल मीडिया में दिखेगा
             if (isViewOnce) {
                 dlBtn.style.display = 'none';
             } else {
@@ -787,7 +786,7 @@
         }
 
         function openViewOnceMsg(msgId, url, type) {
-            openMediaModal(url, type, true); // true पास करने से डाउनलोड बटन छिप जाएगा
+            openMediaModal(url, type, true);
             socket.emit('mark-viewonce-opened', { msgId });
             const msgObj = allHistory.find(m => m.msgId === msgId);
             if(msgObj) msgObj.isOpened = true;
@@ -877,7 +876,6 @@
                 });
                 const camVid = document.getElementById('camPreview');
                 camVid.srcObject = camStream;
-                // फ्रंट कैमरे का मिरर इफ़ेक्ट हटाया गया
                 camVid.style.transform = camFacing === 'user' ? 'scaleX(-1)' : 'none';
             } catch (e) {
                 alert('Camera Access Denied!');
@@ -1146,8 +1144,16 @@
 
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-                video: video ? { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: facing } : false
+                audio: { 
+                    echoCancellation: true, 
+                    noiseSuppression: true, 
+                    autoGainControl: true 
+                },
+                video: video ? { 
+                    width: { ideal: 1920 }, 
+                    height: { ideal: 1080 }, 
+                    facingMode: facing 
+                } : false
             });
         }
 
@@ -1203,7 +1209,7 @@
 
             document.getElementById('callModal').style.display = 'flex';
             document.getElementById('callTargetName').innerText = selectedTargetUser;
-            document.getElementById('callStatusText').innerText = 'Ringing... (रिंगिंग हो रही है)';
+            document.getElementById('callStatusText').innerText = 'Ringing...';
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
@@ -1236,12 +1242,11 @@
             document.getElementById('incomingSlideCard').style.display = 'block';
             document.getElementById('activeCallControls').style.display = 'none';
             
-            // कॉलर को रिंगिंग सिग्नल भेजना
             socket.emit('call-ringing', { targetName: data.fromUser });
         });
 
         socket.on('call-ringing-received', () => {
-            document.getElementById('callStatusText').innerText = 'Ringing... (सामने वाले की घंटी बज रही है)';
+            document.getElementById('callStatusText').innerText = 'Ringing...';
         });
 
         async function acceptCall() {
@@ -1280,9 +1285,6 @@
         function assignStreamViews() {
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
-            const isFrontCamera = currentFacingMode === 'user';
-            
-            // फ्रंट कैमरे का मिरर इफ़ेक्ट पूरी तरह हटाया गया (Right hand remains right hand)
             const localTransform = 'none'; 
 
             if (isMainVideoRemote) {
@@ -1309,9 +1311,13 @@
 
         async function toggleScreenShare() {
             if (!peerConnection) return;
+            
             if (!isScreenSharing) {
+                const confirmShare = confirm("Do you want to share your screen?");
+                if (!confirmShare) return;
+
                 try {
-                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
                     const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
                     if (sender) sender.replaceTrack(screenTrack);
@@ -1319,7 +1325,9 @@
                     document.getElementById('mainVideo').style.transform = 'none';
                     isScreenSharing = true;
                     screenTrack.onended = () => toggleScreenShare();
-                } catch(err) { console.log('Screen sharing cancelled'); }
+                } catch(err) { 
+                    console.log('Screen sharing cancelled'); 
+                }
             } else {
                 const videoTrack = localStream.getVideoTracks()[0];
                 const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
