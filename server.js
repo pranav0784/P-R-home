@@ -2,28 +2,53 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB max payload
+    maxHttpBufferSize: 1e8, // 100MB
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
 });
 
-// Static Files & Basic Route
 app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// JSON File Persistence Paths
+const USERS_FILE = path.join(__dirname, 'users.json');
+const CHAT_FILE = path.join(__dirname, 'messages.json');
+
+// Helper Functions to Load/Save Data
+function loadJSON(filepath, defaultValue) {
+    try {
+        if (fs.existsSync(filepath)) {
+            const data = fs.readFileSync(filepath, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (err) {
+        console.error(`Error reading ${filepath}:`, err);
+    }
+    return defaultValue;
+}
+
+function saveJSON(filepath, data) {
+    try {
+        fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (err) {
+        console.error(`Error writing ${filepath}:`, err);
+    }
+}
+
 // Data Structures
-const registeredUsers = {}; // { username: { username, avatarUrl, isAdmin, lastSeen } }
-const activeSockets = {};   // { socketId: username }
-let chatHistory = [];       
+let registeredUsers = loadJSON(USERS_FILE, {}); // { username: { username, avatarUrl, isAdmin, lastSeen } }
+let chatHistory = loadJSON(CHAT_FILE, []);       // Message history
+const activeSockets = {};                       // { socketId: username }
 
 const MASTER_ADMIN_CODE = "guddu05";
 let currentDynamicCode = "4829";
@@ -34,9 +59,7 @@ function generateRandomCode() {
 
 function getUserSocketId(username) {
     for (let socketId in activeSockets) {
-        if (activeSockets[socketId] === username) {
-            return socketId;
-        }
+        if (activeSockets[socketId] === username) return socketId;
     }
     return null;
 }
@@ -51,13 +74,10 @@ function updateUserList() {
 
 io.on('connection', (socket) => {
 
-    // --- LOGIN SYSTEM ---
     socket.on('login-attempt', (data) => {
         const { username, inputCode, avatarUrl } = data;
         
-        if (!username) {
-            return socket.emit('login-failed', 'Username zaroori hai!');
-        }
+        if (!username) return socket.emit('login-failed', 'Username ज़रूरी है!');
 
         let isAdmin = false;
         const isExistingUser = !!registeredUsers[username];
@@ -79,11 +99,11 @@ io.on('connection', (socket) => {
         if (!registeredUsers[username]) {
             registeredUsers[username] = { username, avatarUrl: userAvatar, isAdmin, lastSeen: 'Online' };
         } else {
-            if (avatarUrl) {
-                registeredUsers[username].avatarUrl = avatarUrl;
-            }
+            if (avatarUrl) registeredUsers[username].avatarUrl = avatarUrl;
             registeredUsers[username].lastSeen = 'Online';
         }
+
+        saveJSON(USERS_FILE, registeredUsers);
 
         activeSockets[socket.id] = username;
         socket.join(username);
@@ -102,7 +122,6 @@ io.on('connection', (socket) => {
         updateUserList();
     });
 
-    // --- ADMIN CONTROLS ---
     socket.on('generate-new-code', () => {
         const username = activeSockets[socket.id];
         if (username && registeredUsers[username]?.isAdmin) {
@@ -124,6 +143,7 @@ io.on('connection', (socket) => {
         if (requestingUser && registeredUsers[requestingUser]?.isAdmin) {
             const userToKick = data.targetUsername;
             delete registeredUsers[userToKick];
+            saveJSON(USERS_FILE, registeredUsers);
             
             const targetSocketId = getUserSocketId(userToKick);
             if (targetSocketId) {
@@ -136,11 +156,11 @@ io.on('connection', (socket) => {
     socket.on('update-avatar', (data) => {
         if (registeredUsers[data.username]) {
             registeredUsers[data.username].avatarUrl = data.newAvatarUrl;
+            saveJSON(USERS_FILE, registeredUsers);
             updateUserList();
         }
     });
 
-    // --- MESSAGING SYSTEM ---
     socket.on('send-private-message', (data) => {
         if (!data.targetName || !data.senderName) return;
 
@@ -158,6 +178,7 @@ io.on('connection', (socket) => {
         };
 
         chatHistory.push(msgObject);
+        saveJSON(CHAT_FILE, chatHistory);
 
         io.to(data.targetName).emit('receive-private-message', msgObject);
         if (data.senderName !== data.targetName) {
@@ -166,19 +187,24 @@ io.on('connection', (socket) => {
     });
 
     socket.on('mark-messages-read', (data) => {
+        let changed = false;
         chatHistory.forEach(m => {
-            if (m.senderName === data.senderName && m.targetName === data.readerName) {
+            if (m.senderName === data.senderName && m.targetName === data.readerName && !m.isRead) {
                 m.isRead = true;
-                m.isDelivered = true;
+                changed = true;
             }
         });
-        io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
+        if (changed) {
+            saveJSON(CHAT_FILE, chatHistory);
+            io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
+        }
     });
 
     socket.on('mark-viewonce-opened', (data) => {
         const msg = chatHistory.find(m => m.msgId === data.msgId);
         if (msg) {
             msg.isOpened = true;
+            saveJSON(CHAT_FILE, chatHistory);
             io.to(msg.senderName).emit('viewonce-opened-update', { msgId: data.msgId });
             io.to(msg.targetName).emit('viewonce-opened-update', { msgId: data.msgId });
         }
@@ -186,7 +212,19 @@ io.on('connection', (socket) => {
 
     socket.on('delete-message-everyone', (data) => {
         chatHistory = chatHistory.filter(m => m.msgId !== data.msgId);
+        saveJSON(CHAT_FILE, chatHistory);
         io.emit('message-deleted-everyone', { msgId: data.msgId });
+    });
+
+    socket.on('clear-chat-history', (data) => {
+        const { user1, user2 } = data;
+        chatHistory = chatHistory.filter(m => 
+            !((m.senderName === user1 && m.targetName === user2) || 
+              (m.senderName === user2 && m.targetName === user1))
+        );
+        saveJSON(CHAT_FILE, chatHistory);
+        io.to(user1).emit('load-chat-history', chatHistory);
+        io.to(user2).emit('load-chat-history', chatHistory);
     });
 
     socket.on('typing', (data) => {
@@ -198,7 +236,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- LIVE WHITEBOARD ---
     socket.on('wb-draw-data', (data) => {
         if (data.targetName) {
             io.to(data.targetName).emit('wb-draw-receive', {
@@ -219,7 +256,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- WEBRTC CALLING ---
     socket.on('call-user', (data) => {
         if (data.targetName) {
             io.to(data.targetName).emit('incoming-call', { 
@@ -248,13 +284,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- DISCONNECT HANDLER (FIXED LAST SEEN FORMAT) ---
     socket.on('disconnect', () => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
             if (registeredUsers[username]) {
-                registeredUsers[username].lastSeen = `last seen today at ${timeStr}`;
+                registeredUsers[username].lastSeen = `today at ${timeStr}`;
+                saveJSON(USERS_FILE, registeredUsers);
             }
             delete activeSockets[socket.id];
             updateUserList();
