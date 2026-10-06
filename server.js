@@ -245,7 +245,6 @@ io.on('connection', (socket) => {
         const username = activeSockets[socket.id];
         if (username) {
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-            const dateStr = new Date().toLocaleDateString();
             if (registeredUsers[username]) {
                 registeredUsers[username].lastSeen = `last seen today at ${timeStr}`;
                 saveData();
