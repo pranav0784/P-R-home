@@ -3,40 +3,53 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const admin = require('firebase-admin');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
 // 1. Firebase Admin Initialisation (Render Secret / Local Support)
-let serviceAccount;
-try {
-    serviceAccount = require('/etc/secrets/serviceAccountKey.json');
-} catch (e) {
+let serviceAccount = null;
+
+const secretPath = '/etc/secrets/serviceAccountKey.json';
+const localPath = path.join(__dirname, 'serviceAccountKey.json');
+
+if (fs.existsSync(secretPath)) {
     try {
-        serviceAccount = require('./serviceAccountKey.json');
-    } catch (err) {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-            try {
-                serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            } catch (pErr) {
-                console.log("Error parsing FIREBASE_SERVICE_ACCOUNT env var.");
-            }
-        }
-        if (!serviceAccount) {
-            console.log("Firebase key file/env not found. Running with in-memory mode.");
-        }
+        serviceAccount = require(secretPath);
+        console.log("Found Firebase key in /etc/secrets/");
+    } catch (e) {
+        console.error("Error loading secret file:", e);
+    }
+} else if (fs.existsSync(localPath)) {
+    try {
+        serviceAccount = require(localPath);
+        console.log("Found Firebase key in local directory.");
+    } catch (e) {
+        console.error("Error loading local serviceAccountKey.json:", e);
+    }
+} else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        console.log("Found Firebase key in Environment Variable.");
+    } catch (e) {
+        console.error("Error parsing FIREBASE_SERVICE_ACCOUNT env var:", e);
     }
 }
 
 if (serviceAccount) {
     try {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+        }
         console.log("🔥 Firebase Admin Initialized Successfully!");
     } catch (fErr) {
-        console.error("Firebase Initialization Error:", fErr);
+        console.error("Firebase Admin Initialization Failed:", fErr);
     }
+} else {
+    console.log("⚠️ Running without Firebase. Data will not persist across restarts.");
 }
 
 const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
@@ -143,7 +156,11 @@ io.on('connection', (socket) => {
         userDetails[username] = userObj;
 
         if (db) {
-            await db.collection('users').doc(username).set(userObj, { merge: true });
+            try {
+                await db.collection('users').doc(username).set(userObj, { merge: true });
+            } catch (err) {
+                console.error("Error saving user to Firestore:", err);
+            }
         }
 
         activeSockets[socket.id] = username;
@@ -189,7 +206,11 @@ io.on('connection', (socket) => {
             
             delete userDetails[userToKick];
             if (db) {
-                await db.collection('users').doc(userToKick).delete();
+                try {
+                    await db.collection('users').doc(userToKick).delete();
+                } catch (err) {
+                    console.error("Error deleting user from Firestore:", err);
+                }
             }
             
             const targetSocketId = getUserSocketId(userToKick);
@@ -205,7 +226,11 @@ io.on('connection', (socket) => {
             userDetails[data.username].avatarUrl = data.newAvatarUrl;
         }
         if (db) {
-            await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
+            try {
+                await db.collection('users').doc(data.username).update({ avatarUrl: data.newAvatarUrl });
+            } catch (err) {
+                console.error("Error updating avatar in Firestore:", err);
+            }
         }
         await broadcastUserList();
     });
@@ -228,7 +253,11 @@ io.on('connection', (socket) => {
         };
 
         if (db) {
-            await db.collection('chats').doc(msgId).set(msgObject);
+            try {
+                await db.collection('chats').doc(msgId).set(msgObject);
+            } catch (err) {
+                console.error("Error saving message to Firestore:", err);
+            }
         }
 
         const clientPayload = { msgId, ...msgObject };
@@ -241,30 +270,42 @@ io.on('connection', (socket) => {
 
     socket.on('mark-messages-read', async (data) => {
         if (db) {
-            const snapshot = await db.collection('chats')
-                .where('senderName', '==', data.senderName)
-                .where('targetName', '==', data.readerName)
-                .get();
-            
-            const batch = db.batch();
-            snapshot.docs.forEach(doc => {
-                batch.update(doc.ref, { isRead: true, isDelivered: true });
-            });
-            await batch.commit();
+            try {
+                const snapshot = await db.collection('chats')
+                    .where('senderName', '==', data.senderName)
+                    .where('targetName', '==', data.readerName)
+                    .get();
+                
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.update(doc.ref, { isRead: true, isDelivered: true });
+                });
+                await batch.commit();
+            } catch (err) {
+                console.error("Error marking messages read in Firestore:", err);
+            }
         }
         io.to(data.senderName).emit('messages-read-update', { readerName: data.readerName });
     });
 
     socket.on('mark-viewonce-opened', async (data) => {
         if (db) {
-            await db.collection('chats').doc(data.msgId).update({ isOpened: true });
+            try {
+                await db.collection('chats').doc(data.msgId).update({ isOpened: true });
+            } catch (err) {
+                console.error("Error updating viewOnce in Firestore:", err);
+            }
         }
         io.emit('viewonce-opened-update', { msgId: data.msgId });
     });
 
     socket.on('delete-message-everyone', async (data) => {
         if (db) {
-            await db.collection('chats').doc(data.msgId).delete();
+            try {
+                await db.collection('chats').doc(data.msgId).delete();
+            } catch (err) {
+                console.error("Error deleting message from Firestore:", err);
+            }
         }
         io.emit('message-deleted-everyone', { msgId: data.msgId });
     });
@@ -327,9 +368,13 @@ io.on('connection', (socket) => {
                 userDetails[username].lastSeen = `last seen today at ${timeStr}`;
             }
             if (db) {
-                await db.collection('users').doc(username).update({
-                    lastSeen: `last seen today at ${timeStr}`
-                });
+                try {
+                    await db.collection('users').doc(username).update({
+                        lastSeen: `last seen today at ${timeStr}`
+                    });
+                } catch (err) {
+                    console.error("Error updating lastSeen in Firestore:", err);
+                }
             }
             delete activeSockets[socket.id];
             await broadcastUserList();
