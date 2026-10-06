@@ -121,7 +121,6 @@
             background: rgba(11,20,26,0.96); z-index: 9500; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
         }
 
-        /* DP Viewer Modal */
         #dpViewerModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(0,0,0,0.9); z-index: 9999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
@@ -150,7 +149,7 @@
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        #camPreview { width: 100%; height: 80%; object-fit: cover; transform: none !important; }
+        #camPreview { width: 100%; height: 80%; object-fit: cover; }
         .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
         .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
 
@@ -198,19 +197,21 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* VIDEO CALL STYLES - Mirror Effect Fully Removed */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transform: none !important; }
+        .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; touch-action: none; }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transition: transform 0.1s ease-out; transform-origin: center center; }
         #pipVideo {
             position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
             z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none; background: #222;
-            transform: none !important;
+            transition: transform 0.1s ease-out; transform-origin: center center;
         }
+        .mirror-self { transform: scaleX(-1); }
+        .no-mirror { transform: scaleX(1); }
+
         .call-top-bar {
             position: relative; z-index: 10; width: 100%; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
@@ -272,7 +273,6 @@
         </div>
     </div>
 
-    <!-- DP Fullscreen Viewer Modal -->
     <div id="dpViewerModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeDpViewer()">← Back</button>
@@ -367,7 +367,7 @@
 
         <div class="video-full-container" id="videoContainer">
             <video id="mainVideo" autoplay playsinline></video>
-            <video id="pipVideo" autoplay playsinline muted></video>
+            <video id="pipVideo" autoplay playsinline muted class="mirror-self"></video>
         </div>
 
         <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
@@ -473,7 +473,6 @@
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
 
-        // WebRTC Variables
         let peerConnection = null, localStream = null, remoteStream = null, incomingOffer = null, isVideoCall = false;
         let currentFacingMode = 'user';
         let isScreenSharing = false, isMicMuted = false, isMainVideoRemote = true;
@@ -510,6 +509,8 @@
             populateEmojiBox();
             initWhiteboardEngine();
             initDraggablePip();
+            enableZoom('videoContainer', 'mainVideo');
+            enableZoom('pipVideo', 'pipVideo');
 
             window.addEventListener('click', (e) => {
                 if (!e.target.closest('.header-actions')) {
@@ -676,7 +677,7 @@
                 
                 showInAppNotification(msgObj.senderName, msgObj.message || msgObj.mediaType);
                 const sound = document.getElementById('notifySound');
-                if(sound) sound.play().catch(e => console.log('Audio play blocked'));
+                if(sound) sound.play().catch(e => {});
             }
         });
 
@@ -865,7 +866,6 @@
             renderFilteredHistory();
         });
 
-        // WhatsApp Style Multiple File Select & Direct Batch Send
         function handleFileSelect(input) {
             if(input.files && input.files.length > 0 && selectedTargetUser) {
                 pendingMediaFiles = Array.from(input.files);
@@ -1200,15 +1200,10 @@
             }
         });
 
-        // WebRTC HD Stream & Echo Cancellation Engine
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true
-                },
-                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 },
+                video: video ? { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 24, max: 30 }, facingMode: facing } : false
             });
         }
 
@@ -1248,6 +1243,17 @@
             pip.addEventListener('touchstart', onStart, {passive: true});
             document.addEventListener('touchmove', onMove, {passive: true});
             document.addEventListener('touchend', onEnd);
+        }
+
+        function updatePipMirrorStyle() {
+            const pip = document.getElementById('pipVideo');
+            if (currentFacingMode === 'user') {
+                pip.classList.add('mirror-self');
+                pip.classList.remove('no-mirror');
+            } else {
+                pip.classList.add('no-mirror');
+                pip.classList.remove('mirror-self');
+            }
         }
 
         function createPeerConnection() {
@@ -1300,6 +1306,7 @@
 
             try {
                 localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                updatePipMirrorStyle();
                 assignStreamViews();
                 createPeerConnection();
 
@@ -1339,6 +1346,7 @@
 
             try {
                 localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                updatePipMirrorStyle();
                 assignStreamViews();
                 createPeerConnection();
 
@@ -1412,6 +1420,7 @@
                 if (sender) {
                     sender.replaceTrack(newVideoTrack);
                 }
+                updatePipMirrorStyle();
                 assignStreamViews();
             } catch(e) {}
         }
@@ -1482,6 +1491,40 @@
             isMicMuted = false;
             document.getElementById('btnMuteMic').innerText = '🎙';
             document.getElementById('callModal').style.display = 'none';
+        }
+
+        // --- Pinch-to-Zoom Feature Added ---
+        function enableZoom(containerId, videoId) {
+            const container = document.getElementById(containerId);
+            const video = document.getElementById(videoId);
+            let scale = 1;
+            let startDist = 0;
+
+            if(!container || !video) return;
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    startDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            }, {passive: true});
+
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    let dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    let factor = dist / startDist;
+                    scale = Math.min(Math.max(1, scale * factor), 4); // Zoom range: 1x to 4x
+                    
+                    let mirrorProp = (videoId === 'pipVideo' && currentFacingMode === 'user') ? 'scaleX(-1) ' : '';
+                    video.style.transform = mirrorProp + `scale(${scale})`;
+                    startDist = dist;
+                }
+            }, {passive: true});
         }
     </script>
 </body>
