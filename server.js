@@ -7,7 +7,7 @@ const admin = require('firebase-admin');
 const app = express();
 const server = http.createServer(app);
 
-// 1. Firebase Admin Initialisation (Render Secret / Local Support)
+// 1. Firebase Admin Initialisation
 let serviceAccount;
 try {
     serviceAccount = require('/etc/secrets/serviceAccountKey.json');
@@ -29,7 +29,7 @@ if (serviceAccount) {
 const db = serviceAccount ? admin.firestore() : null;
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8, // 100MB
+    maxHttpBufferSize: 1e8, // 100MB max payload
     pingInterval: 10000,
     pingTimeout: 5000,
     cors: { origin: "*" }
