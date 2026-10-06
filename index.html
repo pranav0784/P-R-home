@@ -66,7 +66,7 @@
         .user-list { flex: 1; overflow-y: auto; }
         .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
         .user-item:hover, .user-item.active { background: #202c33; }
-        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; cursor: pointer; }
         .user-info { flex: 1; min-width: 0; }
         .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
@@ -78,7 +78,7 @@
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
         .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
         .target-profile { display: flex; align-items: center; gap: 12px; }
-        .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
         .header-actions { display: flex; gap: 12px; align-items: center; position: relative; }
 
         .dropdown-menu {
@@ -121,6 +121,13 @@
             background: rgba(11,20,26,0.96); z-index: 9500; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
         }
 
+        /* DP Viewer Modal */
+        #dpViewerModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(0,0,0,0.9); z-index: 9999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
+        }
+        #dpViewerImg { max-width: 90%; max-height: 80vh; border-radius: 12px; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+
         .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; font-size: 0.92rem; word-break: break-word; position: relative; cursor: pointer; }
         .msg.sent { align-self: flex-end; background: var(--bubble-sent); }
         .msg.recv { align-self: flex-start; background: var(--bubble-recv); }
@@ -143,7 +150,7 @@
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        #camPreview { width: 100%; height: 80%; object-fit: cover; }
+        #camPreview { width: 100%; height: 80%; object-fit: cover; transform: none !important; }
         .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
         .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
 
@@ -191,17 +198,18 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* VIDEO CALL STYLES */
+        /* VIDEO CALL STYLES - Mirror Effect Fully Removed */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; }
+        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transform: none !important; }
         #pipVideo {
             position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
             z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none; background: #222;
+            transform: none !important;
         }
         .call-top-bar {
             position: relative; z-index: 10; width: 100%; padding: 20px;
@@ -264,6 +272,18 @@
         </div>
     </div>
 
+    <!-- DP Fullscreen Viewer Modal -->
+    <div id="dpViewerModal">
+        <div class="media-modal-header">
+            <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeDpViewer()">← Back</button>
+            <span id="dpUsernameTitle" style="font-weight:bold; color:var(--text-primary);">Profile Photo</span>
+            <span></span>
+        </div>
+        <div style="display:flex; justify-content:center; align-items:center; flex:1; width:100%;">
+            <img id="dpViewerImg" src="">
+        </div>
+    </div>
+
     <div id="mediaModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeMediaModal()">← Back</button>
@@ -279,7 +299,7 @@
     <div id="mediaPreviewModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeMediaPreview()">✕</button>
-            <span style="font-weight:bold; color:var(--text-primary);">Send Media</span>
+            <span style="font-weight:bold; color:var(--text-primary);" id="mediaCountText">Send Media</span>
             <span></span>
         </div>
         <div style="display:flex; justify-content:center; align-items:center; flex:1; width:100%;">
@@ -291,7 +311,7 @@
                 <input type="checkbox" id="viewOnceCheckbox" style="width:18px; height:18px; accent-color:var(--accent-green); cursor:pointer;">
                 <label for="viewOnceCheckbox" style="font-size:0.9rem; cursor:pointer; color:var(--text-primary);">View Once (1️⃣)</label>
             </div>
-            <button onclick="confirmSendMedia()" style="background:var(--accent-green); color:#fff; border:none; padding:12px 30px; border-radius:24px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 15px rgba(0,168,132,0.4);">Send ➔</button>
+            <button onclick="confirmSendMediaAll()" style="background:var(--accent-green); color:#fff; border:none; padding:12px 30px; border-radius:24px; font-weight:bold; font-size:1rem; cursor:pointer; box-shadow:0 4px 15px rgba(0,168,132,0.4);">Send All ➔</button>
         </div>
     </div>
 
@@ -371,10 +391,10 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile-badge">
-                    <img id="myAvatarImg" src="" class="my-avatar" onclick="document.getElementById('avatarFileInput').click()">
+                    <img id="myAvatarImg" src="" class="my-avatar" onclick="openDpViewer(this.src, myName)">
                     <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
                     <div>
-                        <strong id="myUsernameText">User</strong>
+                        <strong id="myUsernameText" onclick="document.getElementById('avatarFileInput').click()" style="cursor:pointer;" title="Click to Change Avatar">User ✏️</strong>
                         <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Online</div>
                     </div>
                 </div>
@@ -396,7 +416,7 @@
             <div class="chat-header">
                 <div class="target-profile">
                     <button class="btn-icon" onclick="closeMobileChat()" style="display:none; font-size:1.3rem; margin-right:5px;" id="backBtn">←</button>
-                    <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar">
+                    <img id="targetAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="target-avatar" onclick="openDpViewer(this.src, selectedTargetUser || 'Profile')">
                     <div>
                         <strong id="targetNameText">Select User</strong>
                         <div id="targetStatusText" style="font-size:0.75rem; color:var(--text-secondary);">Offline</div>
@@ -449,7 +469,6 @@
         let selectedMsgForDelete = null;
         let activeReplyMsg = null;
         let pendingMediaFiles = [];
-        let mediaReaderIndex = 0;
 
         let mediaRecorder = null, audioChunks = [], isRecording = false;
         let typingTimeout = null;
@@ -499,6 +518,17 @@
             });
         };
 
+        function openDpViewer(srcUrl, title) {
+            if(!srcUrl) return;
+            document.getElementById('dpViewerImg').src = srcUrl;
+            document.getElementById('dpUsernameTitle').innerText = title || 'Profile Photo';
+            document.getElementById('dpViewerModal').style.display = 'flex';
+        }
+
+        function closeDpViewer() {
+            document.getElementById('dpViewerModal').style.display = 'none';
+        }
+
         function populateEmojiBox() {
             const box = document.getElementById('emojiBox');
             box.innerHTML = '';
@@ -530,7 +560,7 @@
         socket.on('login-success', (data) => {
             document.getElementById('authOverlay').style.display = 'none';
             document.getElementById('appContainer').style.display = 'flex';
-            document.getElementById('myUsernameText').innerText = data.username;
+            document.getElementById('myUsernameText').innerText = `${data.username} ✏️`;
             document.getElementById('myAvatarImg').src = data.avatarUrl;
             document.getElementById('myRoleBadge').innerText = data.isAdmin ? 'Master Admin 👑' : 'Online';
             
@@ -583,7 +613,7 @@
                     const unreadCount = unreadCounts[u.username] || 0;
                     
                     div.innerHTML = `
-                        <img src="${u.avatarUrl}">
+                        <img src="${u.avatarUrl}" onclick="event.stopPropagation(); openDpViewer('${u.avatarUrl}', '${u.username}')">
                         <div class="user-info">
                             <strong>${u.username} ${u.isAdmin ? '👑' : ''}</strong>
                             <span>${statusText}</span>
@@ -617,6 +647,7 @@
 
             document.getElementById('targetNameText').innerText = userObj.username;
             document.getElementById('targetAvatarImg').src = userObj.avatarUrl;
+            document.getElementById('targetAvatarImg').onclick = () => openDpViewer(userObj.avatarUrl, userObj.username);
             document.getElementById('targetStatusText').innerText = userObj.isOnline ? 'Online' : (userObj.lastSeen ? userObj.lastSeen : 'Offline');
             document.body.classList.add('mobile-chat-open');
 
@@ -834,25 +865,26 @@
             renderFilteredHistory();
         });
 
+        // WhatsApp Style Multiple File Select & Direct Batch Send
         function handleFileSelect(input) {
             if(input.files && input.files.length > 0 && selectedTargetUser) {
                 pendingMediaFiles = Array.from(input.files);
-                mediaReaderIndex = 0;
                 document.getElementById('viewOnceCheckbox').checked = false;
-                showNextMediaPreview();
+                showMediaBatchPreview();
                 input.value = '';
             }
         }
 
-        function showNextMediaPreview() {
-            if(mediaReaderIndex < pendingMediaFiles.length) {
-                const file = pendingMediaFiles[mediaReaderIndex];
-                const isVideo = file.type.startsWith('video/');
+        function showMediaBatchPreview() {
+            if(pendingMediaFiles.length > 0) {
+                const firstFile = pendingMediaFiles[0];
+                const isVideo = firstFile.type.startsWith('video/');
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const img = document.getElementById('previewImg');
                     const vid = document.getElementById('previewVid');
                     document.getElementById('mediaPreviewModal').style.display = 'flex';
+                    document.getElementById('mediaCountText').innerText = `Send ${pendingMediaFiles.length} Media File(s)`;
 
                     if(isVideo) {
                         vid.src = e.target.result;
@@ -864,9 +896,7 @@
                         vid.style.display = 'none';
                     }
                 };
-                reader.readAsDataURL(file);
-            } else {
-                closeMediaPreview();
+                reader.readAsDataURL(firstFile);
             }
         }
 
@@ -874,16 +904,18 @@
             document.getElementById('mediaPreviewModal').style.display = 'none';
             document.getElementById('previewVid').pause();
             pendingMediaFiles = [];
-            mediaReaderIndex = 0;
         }
 
-        function confirmSendMedia() {
-            if(mediaReaderIndex < pendingMediaFiles.length && selectedTargetUser) {
-                const file = pendingMediaFiles[mediaReaderIndex];
-                const isVideo = file.type.startsWith('video/');
-                const isViewOnce = document.getElementById('viewOnceCheckbox').checked;
-                const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        function confirmSendMediaAll() {
+            if(!selectedTargetUser || pendingMediaFiles.length === 0) return;
+            const isViewOnce = document.getElementById('viewOnceCheckbox').checked;
+            const clientTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
+            const filesToSend = [...pendingMediaFiles];
+            closeMediaPreview();
+
+            filesToSend.forEach(file => {
+                const isVideo = file.type.startsWith('video/');
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     socket.emit('send-private-message', {
@@ -894,11 +926,9 @@
                         isViewOnce: isViewOnce,
                         clientTime: clientTime
                     });
-                    mediaReaderIndex++;
-                    showNextMediaPreview();
                 };
                 reader.readAsDataURL(file);
-            }
+            });
         }
 
         async function openDirectCamera() {
@@ -944,9 +974,8 @@
                 .then(blob => {
                     const file = new File([blob], "camera_photo.jpg", { type: "image/jpeg" });
                     pendingMediaFiles = [file];
-                    mediaReaderIndex = 0;
                     document.getElementById('viewOnceCheckbox').checked = false;
-                    showNextMediaPreview();
+                    showMediaBatchPreview();
                 });
         }
 
@@ -1171,10 +1200,14 @@
             }
         });
 
-        // WebRTC Call Logic
+        // WebRTC HD Stream & Echo Cancellation Engine
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                audio: { 
+                    echoCancellation: true, 
+                    noiseSuppression: true, 
+                    autoGainControl: true
+                },
                 video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
             });
         }
@@ -1316,6 +1349,9 @@
                 await peerConnection.setLocalDescription(answer);
 
                 socket.emit('answer-call', { targetName: selectedTargetUser, answer });
+
+                document.getElementById('mainVideo').play().catch(e => {});
+                document.getElementById('pipVideo').play().catch(e => {});
             } catch (err) {
                 alert('Call connection failed');
                 endCall();
