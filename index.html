@@ -161,6 +161,18 @@
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
+        #screenShareConfirmModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;
+        }
+        .confirm-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; border: 1px solid var(--card-border); width: 90%; max-width: 320px; text-align: center; }
+        .confirm-card h3 { color: var(--accent-green); margin-bottom: 12px; }
+        .confirm-card p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px; }
+        .confirm-actions { display: flex; gap: 12px; }
+        .confirm-actions button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-confirm-yes { background: var(--accent-green); color: #fff; }
+        .btn-confirm-no { background: #2a3942; color: #fff; }
+
         #whiteboardModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(11, 20, 26, 0.98); z-index: 8000; flex-direction: column;
@@ -237,6 +249,17 @@
             <input type="password" id="inputCode" placeholder="Enter Passcode (Master: guddu05 / Dynamic)">
             <input type="text" id="inputAvatar" placeholder="Profile Avatar URL (Optional)">
             <button onclick="login()">Enter Chat</button>
+        </div>
+    </div>
+
+    <div id="screenShareConfirmModal">
+        <div class="confirm-card">
+            <h3>Share Screen</h3>
+            <p>Do you want to share your screen with the participant?</p>
+            <div class="confirm-actions">
+                <button class="btn-confirm-no" onclick="closeScreenShareConfirm(false)">Cancel</button>
+                <button class="btn-confirm-yes" onclick="closeScreenShareConfirm(true)">Share</button>
+            </div>
         </div>
     </div>
 
@@ -323,7 +346,7 @@
 
         <div class="video-full-container" id="videoContainer">
             <video id="mainVideo" autoplay playsinline></video>
-            <video id="pipVideo" autoplay playsinline></video>
+            <video id="pipVideo" autoplay playsinline muted></video>
         </div>
 
         <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
@@ -337,7 +360,7 @@
 
         <div class="call-controls-bar" id="activeCallControls">
             <button class="call-btn-circle" onclick="switchCamera()" title="Switch Camera">🔄</button>
-            <button class="call-btn-circle" onclick="toggleScreenShare()" title="Share Screen">🖥️</button>
+            <button class="call-btn-circle" onclick="promptScreenShare()" title="Share Screen">🖥️</button>
             <button class="call-btn-circle" id="btnMuteMic" onclick="toggleMuteMic()" title="Mute Mic">🎙</button>
             <button class="call-btn-circle btn-call-end" onclick="endCall()" title="End Call">📞</button>
         </div>
@@ -728,7 +751,7 @@
 
                 if(msg.isViewOnce) {
                     if (msg.isOpened) {
-                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁️‍🗨️ Opened</div>`;
+                        html += `<div class="view-once-badge" style="opacity:0.6; border-color:var(--text-secondary); color:var(--text-secondary);">👁️️‍🗨️ Opened</div>`;
                     } else {
                         html += `<div class="view-once-badge" onclick="event.stopPropagation(); openViewOnceMsg('${msg.msgId}', '${msg.mediaUrl}', '${msg.mediaType}')">👁️‍🗨️ View Once Photo</div>`;
                     }
@@ -876,7 +899,7 @@
                 });
                 const camVid = document.getElementById('camPreview');
                 camVid.srcObject = camStream;
-                camVid.style.transform = camFacing === 'user' ? 'scaleX(-1)' : 'none';
+                camVid.style.transform = 'none';
             } catch (e) {
                 alert('Camera Access Denied!');
                 closeCamera();
@@ -900,11 +923,6 @@
             canvas.width = vid.videoWidth || 1920;
             canvas.height = vid.videoHeight || 1080;
             const ctx = canvas.getContext('2d');
-            
-            if(camFacing === 'user') {
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
-            }
             ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
             
             const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -1148,7 +1166,9 @@
                     echoCancellation: true, 
                     noiseSuppression: true, 
                     autoGainControl: true,
-                    googEchoCancellation: true
+                    googEchoCancellation: true,
+                    googAutoGainControl: true,
+                    googNoiseSuppression: true
                 },
                 video: video ? { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: facing } : false
             });
@@ -1216,10 +1236,7 @@
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            peerConnection.ontrack = e => { 
-                remoteStream = e.streams[0]; 
-                assignStreamViews(); 
-            };
+            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
             peerConnection.onicecandidate = e => {
                 if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
             };
@@ -1260,10 +1277,7 @@
             peerConnection = new RTCPeerConnection(rtcConfig);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-            peerConnection.ontrack = e => { 
-                remoteStream = e.streams[0]; 
-                assignStreamViews(); 
-            };
+            peerConnection.ontrack = e => { remoteStream = e.streams[0]; assignStreamViews(); };
             peerConnection.onicecandidate = e => {
                 if(e.candidate) socket.emit('ice-candidate', { targetName: selectedTargetUser, candidate: e.candidate });
             };
@@ -1289,24 +1303,15 @@
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
             
+            mainVid.style.transform = 'none';
+            pipVid.style.transform = 'none';
+
             if (isMainVideoRemote) {
-                if (remoteStream) { 
-                    mainVid.srcObject = remoteStream; 
-                    mainVid.muted = false; 
-                }
-                if (localStream) { 
-                    pipVid.srcObject = localStream; 
-                    pipVid.muted = true; // Crucial: Mute local playback to avoid echo/feedback loops
-                }
+                if (remoteStream) mainVid.srcObject = remoteStream;
+                if (localStream) pipVid.srcObject = localStream;
             } else {
-                if (localStream) { 
-                    mainVid.srcObject = localStream; 
-                    mainVid.muted = true; 
-                }
-                if (remoteStream) { 
-                    pipVid.srcObject = remoteStream; 
-                    pipVid.muted = false; 
-                }
+                if (localStream) mainVid.srcObject = localStream;
+                if (remoteStream) pipVid.srcObject = remoteStream;
             }
         }
 
@@ -1318,41 +1323,40 @@
             localStream.getTracks().forEach(track => track.stop());
             localStream = await getHDMediaStream(true, currentFacingMode);
             const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+            const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
             if (sender) sender.replaceTrack(videoTrack);
             assignStreamViews();
         }
 
-        async function toggleScreenShare() {
-            if (!peerConnection) return alert('No active call to share screen!');
-            
+        function promptScreenShare() {
+            document.getElementById('screenShareConfirmModal').style.display = 'flex';
+        }
+
+        async function closeScreenShareConfirm(confirmed) {
+            document.getElementById('screenShareConfirmModal').style.display = 'none';
+            if (confirmed) {
+                await executeScreenShare();
+            }
+        }
+
+        async function executeScreenShare() {
+            if (!peerConnection) return;
             if (!isScreenSharing) {
-                if (!confirm('Do you want to share your screen?')) return;
                 try {
                     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
                     if (sender) sender.replaceTrack(screenTrack);
-                    
                     document.getElementById('mainVideo').srcObject = screenStream;
                     isScreenSharing = true;
-                    
-                    screenTrack.onended = () => {
-                        toggleScreenShare();
-                    };
-                } catch(err) {
-                    console.log('Screen sharing cancelled or not supported', err);
-                }
+                    screenTrack.onended = () => executeScreenShare();
+                } catch(err) { console.log('Screen sharing cancelled'); }
             } else {
-                try {
-                    const videoTrack = localStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) sender.replaceTrack(videoTrack);
-                    assignStreamViews();
-                    isScreenSharing = false;
-                } catch(err) {
-                    console.log('Error reverting screen share', err);
-                }
+                const videoTrack = localStream.getVideoTracks()[0];
+                const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+                if (sender) sender.replaceTrack(videoTrack);
+                assignStreamViews();
+                isScreenSharing = false;
             }
         }
 
