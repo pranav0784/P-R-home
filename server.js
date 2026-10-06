@@ -20,14 +20,12 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Persistent Storage Files
 const USERS_FILE = path.join(__dirname, 'users.json');
 const CHATS_FILE = path.join(__dirname, 'chats.json');
 
 let registeredUsers = {}; 
 let chatHistory = [];       
 
-// Load Data from JSON files if exist
 if (fs.existsSync(USERS_FILE)) {
     try { registeredUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch(e) { registeredUsers = {}; }
 }
@@ -226,6 +224,13 @@ io.on('connection', (socket) => {
     socket.on('call-user', (data) => {
         if (data.targetName) {
             io.to(data.targetName).emit('incoming-call', { fromUser: activeSockets[socket.id], offer: data.offer, isVideo: data.isVideo });
+        }
+    });
+
+    socket.on('call-ringing', (data) => {
+        if (data.targetName) {
+            const targetSocketId = getUserSocketId(data.targetName);
+            if (targetSocketId) io.to(targetSocketId).emit('call-ringing-received');
         }
     });
 
