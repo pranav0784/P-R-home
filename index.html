@@ -93,7 +93,6 @@
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
-        /* Advanced WhatsApp Style Chat Input Panel */
         .chat-input { min-height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; resize: none; max-height: 120px; }
         .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.35rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0; }
@@ -109,7 +108,6 @@
         #emojiBox span { font-size: 1.4rem; cursor: pointer; user-select: none; transition: transform 0.1s; }
         #emojiBox span:hover { transform: scale(1.3); }
 
-        /* Media Modal & View Once Preview Popup */
         #mediaModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(0,0,0,0.95); z-index: 9999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
@@ -118,7 +116,6 @@
         .media-modal-content { max-width: 90%; max-height: 70vh; object-fit: contain; border-radius: 8px; }
         .media-modal-footer { display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%; }
 
-        /* Media Preview Confirm Box (WhatsApp Style View Once Toggle) */
         #mediaPreviewModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(11,20,26,0.96); z-index: 9500; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
@@ -164,7 +161,6 @@
         .btn-del-me { background: #2a3942; color: #fff; }
         .btn-cancel { background: transparent; color: var(--text-secondary); }
 
-        /* Whiteboard Modal */
         #whiteboardModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(11, 20, 26, 0.98); z-index: 8000; flex-direction: column;
@@ -183,7 +179,6 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* Call Modal */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
@@ -245,7 +240,6 @@
         </div>
     </div>
 
-    <!-- Media Full Screen Viewer Modal -->
     <div id="mediaModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeMediaModal()">← Back</button>
@@ -258,7 +252,6 @@
         <div class="media-modal-footer"></div>
     </div>
 
-    <!-- WhatsApp Style Media Preview Modal (With View Once Checkbox) -->
     <div id="mediaPreviewModal">
         <div class="media-modal-header">
             <button class="btn-icon" style="color:#fff; font-size:1.5rem;" onclick="closeMediaPreview()">✕</button>
@@ -288,7 +281,6 @@
         </div>
     </div>
 
-    <!-- Direct In-App Camera Modal -->
     <div id="cameraModal">
         <video id="camPreview" autoplay playsinline></video>
         <div class="cam-controls">
@@ -412,7 +404,6 @@
                 <button class="btn-icon" onclick="toggleEmojiBox()" title="Emoji Picker">😊</button>
                 <button class="btn-icon" onclick="openDirectCamera()" title="Direct Camera">📷</button>
                 
-                <!-- Media Attachment Input -->
                 <button class="btn-icon" onclick="document.getElementById('fileInput').click()" title="Attach Photos/Videos">📎</button>
                 <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="handleFileSelect(this)">
 
@@ -452,7 +443,7 @@
         const emojiList = [
             '😀','😃','😄','😁','😆','😅','😂','🤣','🥲','🥹','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗',
             '😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕',
-            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
+            '👍','👎','👏','🙌','👐','🤲','🤝','💥','🔥','✨','🎉','❤️️','🧡','💛','💚','💙','💜','🖤','🤍','🤎'
         ];
 
         window.onload = () => {
@@ -692,7 +683,6 @@
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         }
 
-        // Clear Chat only on My Local Screen
         function clearCurrentChat() {
             if(!selectedTargetUser) return;
             if(confirm('Clear chat history on your screen?')) {
@@ -744,8 +734,8 @@
                     }
                 } else {
                     if(msg.mediaType === 'text') html += msg.message;
-                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}" onclick="event.stopPropagation(); openMediaModal('${msg.mediaUrl}', 'image')">`;
-                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls></video>`;
+                    else if(msg.mediaType === 'image') html += `<img src="${msg.mediaUrl}" onclick="event.stopPropagation(); openMediaModal('${msg.mediaUrl}', 'image', false)">`;
+                    else if(msg.mediaType === 'video') html += `<video src="${msg.mediaUrl}" controls onclick="event.stopPropagation(); openMediaModal('${msg.mediaUrl}', 'video', false)"></video>`;
                     else if(msg.mediaType === 'audio') html += `<audio src="${msg.mediaUrl}" controls></audio>`;
                 }
 
@@ -764,14 +754,21 @@
             win.scrollTop = win.scrollHeight;
         }
 
-        function openMediaModal(url, type) {
+        function openMediaModal(url, type, isViewOnce = false) {
             const modal = document.getElementById('mediaModal');
             const img = document.getElementById('modalImg');
             const vid = document.getElementById('modalVid');
             const dlBtn = document.getElementById('downloadMediaBtn');
 
             modal.style.display = 'flex';
-            dlBtn.href = url;
+            
+            // वन टाइम मीडिया में डाउनलोड बटन छुपा दिया गया है, नॉर्मल मीडिया में दिखेगा
+            if (isViewOnce) {
+                dlBtn.style.display = 'none';
+            } else {
+                dlBtn.style.display = 'flex';
+                dlBtn.href = url;
+            }
 
             if(type === 'image') {
                 img.src = url;
@@ -790,7 +787,7 @@
         }
 
         function openViewOnceMsg(msgId, url, type) {
-            openMediaModal(url, type);
+            openMediaModal(url, type, true); // true पास करने से डाउनलोड बटन छिप जाएगा
             socket.emit('mark-viewonce-opened', { msgId });
             const msgObj = allHistory.find(m => m.msgId === msgId);
             if(msgObj) msgObj.isOpened = true;
@@ -803,7 +800,6 @@
             renderFilteredHistory();
         });
 
-        // WhatsApp Style Media Preview & Send Handler
         function handleFileSelect(input) {
             if(input.files && input.files.length > 0 && selectedTargetUser) {
                 pendingMediaFiles = Array.from(input.files);
@@ -871,7 +867,6 @@
             }
         }
 
-        // Direct Camera with High Quality HD (1080p)
         async function openDirectCamera() {
             if(!selectedTargetUser) return alert('Select user first!');
             document.getElementById('cameraModal').style.display = 'flex';
@@ -880,7 +875,10 @@
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: camFacing }, 
                     audio: false 
                 });
-                document.getElementById('camPreview').srcObject = camStream;
+                const camVid = document.getElementById('camPreview');
+                camVid.srcObject = camStream;
+                // फ्रंट कैमरे का मिरर इफ़ेक्ट हटाया गया
+                camVid.style.transform = camFacing === 'user' ? 'scaleX(-1)' : 'none';
             } catch (e) {
                 alert('Camera Access Denied!');
                 closeCamera();
@@ -904,14 +902,16 @@
             canvas.width = vid.videoWidth || 1920;
             canvas.height = vid.videoHeight || 1080;
             const ctx = canvas.getContext('2d');
+            
+            if(camFacing === 'user') {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
             ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
             
             const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
             closeCamera();
 
-            // Push to pending array so user can choose View Once
-            pendingMediaFiles = [{ type: 'image/jpeg', dataUrl: dataUrl }];
-            // Create a fake File object from dataUrl
             fetch(dataUrl)
                 .then(res => res.blob())
                 .then(blob => {
@@ -1203,7 +1203,7 @@
 
             document.getElementById('callModal').style.display = 'flex';
             document.getElementById('callTargetName').innerText = selectedTargetUser;
-            document.getElementById('callStatusText').innerText = 'Calling...';
+            document.getElementById('callStatusText').innerText = 'Ringing... (रिंगिंग हो रही है)';
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
 
@@ -1235,12 +1235,21 @@
             document.getElementById('incomingCallType').innerText = isVideoCall ? 'Incoming Video Call' : 'Incoming Voice Call';
             document.getElementById('incomingSlideCard').style.display = 'block';
             document.getElementById('activeCallControls').style.display = 'none';
+            
+            // कॉलर को रिंगिंग सिग्नल भेजना
+            socket.emit('call-ringing', { targetName: data.fromUser });
+        });
+
+        socket.on('call-ringing-received', () => {
+            document.getElementById('callStatusText').innerText = 'Ringing... (सामने वाले की घंटी बज रही है)';
         });
 
         async function acceptCall() {
             document.getElementById('incomingSlideCard').style.display = 'none';
             document.getElementById('activeCallControls').style.display = 'flex';
             document.getElementById('callStatusText').innerText = 'Connected';
+
+            socket.emit('call-accepted-signal', { targetName: selectedTargetUser });
 
             localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
             peerConnection = new RTCPeerConnection(rtcConfig);
@@ -1272,13 +1281,15 @@
             const mainVid = document.getElementById('mainVideo');
             const pipVid = document.getElementById('pipVideo');
             const isFrontCamera = currentFacingMode === 'user';
-            const dynamicTransform = isFrontCamera ? 'scaleX(-1)' : 'none';
+            
+            // फ्रंट कैमरे का मिरर इफ़ेक्ट पूरी तरह हटाया गया (Right hand remains right hand)
+            const localTransform = 'none'; 
 
             if (isMainVideoRemote) {
                 if (remoteStream) { mainVid.srcObject = remoteStream; mainVid.style.transform = 'none'; }
-                if (localStream) { pipVid.srcObject = localStream; pipVid.style.transform = dynamicTransform; }
+                if (localStream) { pipVid.srcObject = localStream; pipVid.style.transform = localTransform; }
             } else {
-                if (localStream) { mainVid.srcObject = localStream; mainVid.style.transform = dynamicTransform; }
+                if (localStream) { mainVid.srcObject = localStream; mainVid.style.transform = localTransform; }
                 if (remoteStream) { pipVid.srcObject = remoteStream; pipVid.style.transform = 'none'; }
             }
         }
