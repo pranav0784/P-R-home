@@ -150,7 +150,7 @@
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        #camPreview { width: 100%; height: 80%; object-fit: cover; transform: none !important; }
+        #camPreview { width: 100%; height: 80%; object-fit: cover; }
         .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
         .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
 
@@ -198,19 +198,28 @@
         .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
-        /* VIDEO CALL STYLES - Mirror Effect Fully Removed */
+        /* OPTIMIZED VIDEO CALL STYLES */
         #callModal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 9000; flex-direction: column; justify-content: space-between; align-items: center;
         }
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; }
-        #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transform: none !important; }
+        
+        /* Main Remote Video: Always Unmirrored (Real Orientation) */
+        #mainVideo { 
+            width: 100%; height: 100%; object-fit: cover; background: #111; 
+            transform: none !important; 
+        }
+
+        /* PIP Local Video: Dynamic Mirroring based on camera facing */
         #pipVideo {
             position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
             z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none; background: #222;
-            transform: none !important;
         }
+        .mirror-self { transform: scaleX(-1); }
+        .no-mirror { transform: scaleX(1); }
+
         .call-top-bar {
             position: relative; z-index: 10; width: 100%; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
@@ -367,7 +376,7 @@
 
         <div class="video-full-container" id="videoContainer">
             <video id="mainVideo" autoplay playsinline></video>
-            <video id="pipVideo" autoplay playsinline muted></video>
+            <video id="pipVideo" autoplay playsinline muted class="mirror-self"></video>
         </div>
 
         <div class="incoming-slide-card" id="incomingSlideCard" style="display:none;">
@@ -865,7 +874,6 @@
             renderFilteredHistory();
         });
 
-        // WhatsApp Style Multiple File Select & Direct Batch Send
         function handleFileSelect(input) {
             if(input.files && input.files.length > 0 && selectedTargetUser) {
                 pendingMediaFiles = Array.from(input.files);
@@ -1200,15 +1208,22 @@
             }
         });
 
-        // WebRTC HD Stream & Echo Cancellation Engine
+        // Optimized Audio/Video Stream with Data Saving and Noise Cancellation
         async function getHDMediaStream(video, facing) {
             return await navigator.mediaDevices.getUserMedia({
                 audio: { 
                     echoCancellation: true, 
                     noiseSuppression: true, 
-                    autoGainControl: true
+                    autoGainControl: true,
+                    sampleRate: 48000,
+                    channelCount: 1
                 },
-                video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing } : false
+                video: video ? { 
+                    width: { ideal: 1280, max: 1280 }, 
+                    height: { ideal: 720, max: 720 }, 
+                    frameRate: { ideal: 24, max: 30 },
+                    facingMode: facing 
+                } : false
             });
         }
 
@@ -1248,6 +1263,17 @@
             pip.addEventListener('touchstart', onStart, {passive: true});
             document.addEventListener('touchmove', onMove, {passive: true});
             document.addEventListener('touchend', onEnd);
+        }
+
+        function updatePipMirrorStyle() {
+            const pip = document.getElementById('pipVideo');
+            if (currentFacingMode === 'user') {
+                pip.classList.add('mirror-self');
+                pip.classList.remove('no-mirror');
+            } else {
+                pip.classList.add('no-mirror');
+                pip.classList.remove('mirror-self');
+            }
         }
 
         function createPeerConnection() {
@@ -1300,6 +1326,7 @@
 
             try {
                 localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                updatePipMirrorStyle();
                 assignStreamViews();
                 createPeerConnection();
 
@@ -1339,6 +1366,7 @@
 
             try {
                 localStream = await getHDMediaStream(isVideoCall, currentFacingMode);
+                updatePipMirrorStyle();
                 assignStreamViews();
                 createPeerConnection();
 
@@ -1412,6 +1440,7 @@
                 if (sender) {
                     sender.replaceTrack(newVideoTrack);
                 }
+                updatePipMirrorStyle();
                 assignStreamViews();
             } catch(e) {}
         }
