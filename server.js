@@ -110,9 +110,7 @@ io.on('connection', (socket) => {
         if (username && fcmToken && db) {
             try {
                 await db.collection('users').doc(username).set({ fcmToken: fcmToken }, { merge: true });
-            } catch (e) {
-                console.error("Error saving FCM token:", e);
-            }
+            } catch (e) {}
         }
     });
 
@@ -152,9 +150,7 @@ io.on('connection', (socket) => {
         if (db) {
             try {
                 await db.collection('users').doc(username).set(userObj, { merge: true });
-            } catch (err) {
-                console.error("Error saving user:", err);
-            }
+            } catch (err) {}
         }
 
         activeSockets[socket.id] = username;
@@ -199,6 +195,23 @@ io.on('connection', (socket) => {
             userDetails[username].avatarUrl = newAvatarUrl;
             if (db) {
                 await db.collection('users').doc(username).set({ avatarUrl: newAvatarUrl }, { merge: true });
+            }
+            await broadcastUserList();
+        }
+    });
+
+    socket.on('update-username', async (data) => {
+        const { oldName, newName } = data;
+        if (oldName && newName && userDetails[oldName]) {
+            userDetails[newName] = { ...userDetails[oldName], username: newName };
+            delete userDetails[oldName];
+            activeSockets[socket.id] = newName;
+            
+            if (db) {
+                try {
+                    await db.collection('users').doc(newName).set(userDetails[newName]);
+                    await db.collection('users').doc(oldName).delete();
+                } catch (e) {}
             }
             await broadcastUserList();
         }
@@ -257,14 +270,10 @@ io.on('connection', (socket) => {
                             token: targetData.fcmToken
                         };
 
-                        admin.messaging().send(fcmMessage)
-                            .then((res) => console.log('Stealth notification sent successfully:', res))
-                            .catch((err) => console.log('Error sending FCM notification:', err));
+                        admin.messaging().send(fcmMessage).catch((err) => {});
                     }
                 }
-            } catch (e) {
-                console.error("Error saving message or sending notification:", e);
-            }
+            } catch (e) {}
         }
 
         io.to(targetName).emit('receive-private-message', msgObj);
@@ -337,6 +346,13 @@ io.on('connection', (socket) => {
 
     socket.on('ice-candidate', (data) => {
         io.to(data.targetName).emit('ice-candidate', { candidate: data.candidate });
+    });
+
+    socket.on('video-zoom-sync', (data) => {
+        const senderName = activeSockets[socket.id];
+        if (senderName) {
+            io.to(data.targetName).emit('video-zoom-receive', { zoomScale: data.zoomScale });
+        }
     });
 
     socket.on('end-call', (data) => {
