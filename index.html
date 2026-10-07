@@ -50,25 +50,25 @@
         @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
 
         #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); }
+        .auth-card { background: var(--panel-dark); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--card-border); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .auth-card h2 { color: var(--accent-green); margin-bottom: 18px; }
-        .auth-card input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; }
-        .auth-card button { width: 100%; padding: 11px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; }
+        .auth-card input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--card-border); background: #1f2c34; color: #fff; margin-bottom: 12px; outline: none; font-size: 0.95rem; }
+        .auth-card button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--accent-green); color: #fff; font-weight: bold; cursor: pointer; font-size: 1rem; }
 
         .app-container { width: 100vw; height: 100dvh; display: none; flex-direction: row; overflow: hidden; }
 
         .sidebar { width: 360px; background: var(--panel-dark); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
+        .sidebar-header { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); }
         .user-profile-badge { display: flex; align-items: center; gap: 12px; }
-        .my-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
+        .my-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); cursor: pointer; }
 
         .admin-box { padding: 12px; background: #182229; border-bottom: 1px solid var(--card-border); display: none; }
         .admin-box button { width: 100%; padding: 8px; background: var(--accent-green); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
 
         .user-list { flex: 1; overflow-y: auto; }
-        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; }
+        .user-item { padding: 12px 16px; border-bottom: 1px solid #182229; cursor: pointer; display: flex; align-items: center; gap: 12px; position: relative; transition: background 0.2s; }
         .user-item:hover, .user-item.active { background: #202c33; }
-        .user-item img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+        .user-item img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; cursor: pointer; }
         .user-info { flex: 1; min-width: 0; }
         .user-info strong { display: block; font-size: 0.95rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .user-info span { font-size: 0.8rem; color: var(--text-secondary); }
@@ -78,9 +78,9 @@
         .kick-btn { background: #ff5252; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
 
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); height: 100dvh; min-width: 0; position: relative; }
-        .chat-header { height: 60px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
+        .chat-header { height: 65px; background: var(--header-dark); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--card-border); flex-shrink: 0; }
         .target-profile { display: flex; align-items: center; gap: 12px; }
-        .target-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+        .target-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; cursor: pointer; }
         .header-actions { display: flex; gap: 12px; align-items: center; position: relative; }
 
         .dropdown-menu {
@@ -95,13 +95,13 @@
 
         #replyPreviewBar { display: none; background: #1f2c34; border-left: 4px solid var(--accent-green); padding: 8px 12px; margin: 0 12px; border-radius: 6px; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); }
 
-        .chat-input { min-height: 62px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
+        .chat-input { min-height: 65px; background: var(--header-dark); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--card-border); position: relative; }
         .input-box { flex: 1; padding: 10px 16px; border-radius: 20px; border: none; background: #2a3942; color: #fff; outline: none; font-size: 0.95rem; resize: none; max-height: 120px; }
         .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.35rem; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0; }
         .btn-icon:hover { color: var(--accent-green); }
 
         #emojiBox { 
-            display: none; position: absolute; bottom: 68px; left: 10px; 
+            display: none; position: absolute; bottom: 72px; left: 10px; 
             background: var(--panel-dark); border: 1px solid var(--card-border); 
             padding: 12px; border-radius: 12px; width: 320px; max-height: 250px; 
             overflow-y: auto; flex-wrap: wrap; gap: 10px; z-index: 500; 
@@ -151,7 +151,7 @@
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #000; z-index: 8500; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        #camPreview { width: 100%; height: 80%; object-fit: cover; }
+        #camPreview { width: 100%; height: 80%; object-fit: cover; transform: scaleX(-1); }
         .cam-controls { width: 100%; padding: 20px; display: flex; justify-content: space-around; align-items: center; background: #111b21; }
         .cam-shutter-btn { width: 65px; height: 65px; border-radius: 50%; border: 4px solid #fff; background: var(--accent-green); cursor: pointer; }
 
@@ -186,17 +186,18 @@
             background: rgba(11, 20, 26, 0.98); z-index: 8000; flex-direction: column;
         }
         .wb-header {
-            min-height: 60px; background: var(--header-dark); padding: 8px 16px;
+            min-height: 65px; background: var(--header-dark); padding: 8px 16px;
             display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
             border-bottom: 1px solid var(--card-border);
         }
         .wb-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .wb-tool-btn {
             background: #2a3942; border: 1px solid var(--card-border); color: #fff;
-            padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;
+            padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: bold;
+            transition: all 0.2s;
         }
         .wb-tool-btn.active { background: var(--accent-green); border-color: var(--accent-green); color: #000; }
-        .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 60px); cursor: crosshair; overflow: hidden; }
+        .wb-canvas-container { flex: 1; position: relative; width: 100%; height: calc(100dvh - 65px); cursor: crosshair; overflow: hidden; }
         #liveWhiteboard { display: block; width: 100%; height: 100%; background: #111b21; touch-action: none; }
 
         #callModal {
@@ -206,7 +207,7 @@
         .video-full-container { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; z-index:1; touch-action: none; }
         #mainVideo { width: 100%; height: 100%; object-fit: cover; background: #111; transition: transform 0.1s ease-out; transform-origin: center center; }
         #pipVideo {
-            position: absolute; top: 80px; right: 20px; width: 120px; height: 170px;
+            position: absolute; top: 80px; right: 20px; width: 130px; height: 180px;
             object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-green);
             z-index: 20; box-shadow: 0 4px 20px rgba(0,0,0,0.8); cursor: grab; touch-action: none; background: #222;
             transition: transform 0.1s ease-out; transform-origin: center center;
@@ -228,7 +229,7 @@
             width: 55px; height: 55px; border-radius: 50%; border: none;
             display: flex; justify-content: center; align-items: center;
             font-size: 1.3rem; cursor: pointer; color: #fff; background: rgba(255,255,255,0.2);
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px); transition: background 0.2s;
         }
         .btn-call-end { background: #ff3b30 !important; }
         .btn-call-accept { background: #34c759 !important; }
@@ -396,7 +397,7 @@
                     <img id="myAvatarImg" src="" class="my-avatar" onclick="openDpViewer(this.src, myName)">
                     <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="updateProfileLogo(this)">
                     <div>
-                        <strong id="myUsernameText" onclick="document.getElementById('avatarFileInput').click()" style="cursor:pointer;" title="Click to Change Avatar">User ✏️</strong>
+                        <strong id="myUsernameText" onclick="openNameChangePrompt()" style="cursor:pointer;" title="Click to Change Name/Avatar">User ✏️</strong>
                         <div id="myRoleBadge" style="font-size:0.75rem; color:var(--accent-green);">Online</div>
                     </div>
                 </div>
@@ -498,6 +499,7 @@
         let camStream = null, camFacing = 'environment';
         let wbCanvas, wbCtx, isDrawing = false, wbMode = 'pen';
         let lastX = 0, lastY = 0;
+        let currentZoomScale = 1;
 
         const rtcConfig = { 
             iceServers: [
@@ -543,22 +545,16 @@
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/sw.js')
                         .then(registration => {
-                            console.log('ServiceWorker registered:', registration.scope);
-                            
                             if (messaging) {
                                 messaging.getToken({ serviceWorkerRegistration: registration })
                                     .then((currentToken) => {
                                         if (currentToken && myName) {
                                             socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
                                         }
-                                    }).catch((err) => {
-                                        console.log('Token retrieval error:', err);
-                                    });
+                                    }).catch((err) => {});
                             }
                         })
-                        .catch(error => {
-                            console.log('ServiceWorker registration failed:', error);
-                        });
+                        .catch(error => {});
                 });
             }
         }
@@ -652,6 +648,17 @@
             }
         }
         socket.on('code-updated', (data) => alert(`New Passcode Set: ${data.newCode}`));
+
+        function openNameChangePrompt() {
+            const newName = prompt("Enter your new profile name:", myName);
+            if(newName && newName.trim() !== "" && newName.trim() !== myName) {
+                const oldName = myName;
+                myName = newName.trim();
+                localStorage.setItem('quantum_username', myName);
+                document.getElementById('myUsernameText').innerText = `${myName} ✏️`;
+                socket.emit('update-username', { oldName: oldName, newName: myName });
+            }
+        }
 
         function updateProfileLogo(input) {
             if (input.files && input.files[0]) {
@@ -750,20 +757,6 @@
                 
                 const sound = document.getElementById('notifySound');
                 if(sound) sound.play().catch(e => {});
-
-                if ('Notification' in window && Notification.permission === 'granted') {
-                    navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification('👽', {
-                            body: '',
-                            icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
-                            badge: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
-                            tag: 'alien-notification',
-                            renotify: true,
-                            silent: false,
-                            vibrate: [200, 100, 200]
-                        });
-                    });
-                }
             }
         });
 
@@ -894,9 +887,13 @@
 
                 let ticksHtml = '';
                 if (isMe) {
-                    if (msg.isRead) ticksHtml = '<span class="blue-ticks">✓✓</span>';
-                    else if (msg.isDelivered) ticksHtml = '<span class="grey-ticks">✓✓</span>';
-                    else ticksHtml = '<span class="grey-ticks">✓</span>';
+                    if (msg.isRead) {
+                        ticksHtml = '<span class="blue-ticks">✓✓</span>';
+                    } else if (msg.isDelivered) {
+                        ticksHtml = '<span class="grey-ticks">✓✓</span>';
+                    } else {
+                        ticksHtml = '<span class="grey-ticks">✓</span>';
+                    }
                 }
                 
                 html += `<div class="time-ticks"><span>${msg.time}</span> ${ticksHtml}</div>`;
@@ -1027,6 +1024,7 @@
                 });
                 const camVid = document.getElementById('camPreview');
                 camVid.srcObject = camStream;
+                camVid.style.transform = (camFacing === 'user') ? 'scaleX(-1)' : 'scaleX(1)';
             } catch (e) {
                 alert('Camera Access Denied!');
                 closeCamera();
@@ -1050,6 +1048,11 @@
             canvas.width = vid.videoWidth || 1280;
             canvas.height = vid.videoHeight || 720;
             const ctx = canvas.getContext('2d');
+            
+            if(camFacing === 'user') {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
             ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
             
             const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -1605,13 +1608,25 @@
                     );
                     let factor = dist / startDist;
                     scale = Math.min(Math.max(1, scale * factor), 4);
+                    currentZoomScale = scale;
                     
                     let mirrorProp = (videoId === 'pipVideo' && currentFacingMode === 'user') ? 'scaleX(-1) ' : '';
                     video.style.transform = mirrorProp + `scale(${scale})`;
                     startDist = dist;
+
+                    if (selectedTargetUser && videoId === 'mainVideo') {
+                        socket.emit('video-zoom-sync', { targetName: selectedTargetUser, zoomScale: scale });
+                    }
                 }
             }, {passive: true});
         }
+
+        socket.on('video-zoom-receive', (data) => {
+            const mainVid = document.getElementById('mainVideo');
+            if (mainVid && data.zoomScale) {
+                mainVid.style.transform = `scale(${data.zoomScale})`;
+            }
+        });
     </script>
 </body>
 </html>
