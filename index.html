@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quantum Messenger Pro</title>
     <script src="/socket.io/socket.io.js"></script>
+    <!-- Firebase App & Messaging SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js"></script>
     <style>
         :root {
             --bg-dark: #0b141a;
@@ -463,6 +466,22 @@
     <audio id="notifySound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
 
     <script>
+        // --- Firebase Config (यदि आपकी खुद की Firebase Web Config हो तो यहाँ भरें) ---
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        
+        let messaging = null;
+        if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            messaging = firebase.messaging();
+        }
+
         const socket = io();
         let myName = '', selectedTargetUser = null, allHistory = [];
         let deletedForMeMsgIds = JSON.parse(localStorage.getItem('deletedForMe') || '[]');
@@ -528,6 +547,18 @@
                     navigator.serviceWorker.register('/sw.js')
                         .then(registration => {
                             console.log('ServiceWorker registered:', registration.scope);
+                            
+                            // FCM Token प्राप्त करें और सर्वर पर भेजें
+                            if (messaging) {
+                                messaging.getToken({ vapidKey: "YOUR_VAPID_KEY_IF_NEEDED", serviceWorkerRegistration: registration })
+                                    .then((currentToken) => {
+                                        if (currentToken && myName) {
+                                            socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
+                                        }
+                                    }).catch((err) => {
+                                        console.log('An error occurred while retrieving token. ', err);
+                                    });
+                            }
                         })
                         .catch(error => {
                             console.log('ServiceWorker registration failed:', error);
@@ -541,6 +572,14 @@
                 Notification.requestPermission().then(permission => {
                     if (permission === 'granted') {
                         console.log('Notification permission granted.');
+                        // अनुमति मिलने पर FCM टोकन दोबारा फेच करके सर्वर पर भेजें
+                        if (messaging && myName) {
+                            messaging.getToken().then((currentToken) => {
+                                if (currentToken) {
+                                    socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
+                                }
+                            }).catch(err => {});
+                        }
                     }
                 });
             }
@@ -598,6 +637,15 @@
             localStorage.setItem('quantum_avatar', data.avatarUrl);
             if(data.isAdmin) document.getElementById('adminBox').style.display = 'block';
             else document.getElementById('adminBox').style.display = 'none';
+
+            // लॉगिन के बाद FCM टोकन अपडेट करें
+            if (messaging) {
+                messaging.getToken().then((currentToken) => {
+                    if (currentToken) {
+                        socket.emit('update-fcm-token', { username: data.username, fcmToken: currentToken });
+                    }
+                }).catch(err => {});
+            }
         });
 
         socket.on('login-failed', msg => alert(msg));
