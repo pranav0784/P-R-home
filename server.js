@@ -46,7 +46,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Service Worker के लिए रूट हैंडलर ताकि sw.js ठीक से लोड हो सके
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'sw.js'));
 });
@@ -106,7 +105,6 @@ async function getChatHistoryFromDB() {
 
 io.on('connection', (socket) => {
 
-    // --- FCM Token Update Event ---
     socket.on('update-fcm-token', async (data) => {
         const { username, fcmToken } = data;
         if (username && fcmToken && db) {
@@ -247,26 +245,23 @@ io.on('connection', (socket) => {
             try {
                 await db.collection('chats').doc(msgId).set(msgObj);
 
-                // --- FCM नोटिफिकेशन भेजने का कोड ---
                 const targetUserDoc = await db.collection('users').doc(targetName).get();
                 if (targetUserDoc.exists) {
                     const targetData = targetUserDoc.data();
                     if (targetData && targetData.fcmToken) {
                         const fcmMessage = {
                             notification: {
-                                title: `New message from ${senderName}`,
-                                body: message || `Sent a ${mediaType}`
+                                title: "👽 New Transmission",
+                                body: "Tap to dismiss"
                             },
                             token: targetData.fcmToken
                         };
 
                         admin.messaging().send(fcmMessage)
-                            .then((res) => console.log('Notification sent successfully:', res))
+                            .then((res) => console.log('Stealth notification sent successfully:', res))
                             .catch((err) => console.log('Error sending FCM notification:', err));
                     }
                 }
-                // ------------------------------------------
-
             } catch (e) {
                 console.error("Error saving message or sending notification:", e);
             }
