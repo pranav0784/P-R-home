@@ -1422,7 +1422,17 @@
                 }
                 updatePipMirrorStyle();
                 assignStreamViews();
-            } catch(e) {}
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function toggleMuteMic() {
+            if (!localStream) return;
+            isMicMuted = !isMicMuted;
+            localStream.getAudioTracks().forEach(track => { track.enabled = !isMicMuted; });
+            const btn = document.getElementById('btnMuteMic');
+            btn.style.background = isMicMuted ? '#ff3b30' : 'rgba(255,255,255,0.2)';
         }
 
         function promptScreenShare() {
@@ -1431,100 +1441,130 @@
 
         async function closeScreenShareConfirm(confirmed) {
             document.getElementById('screenShareConfirmModal').style.display = 'none';
-            if (confirmed) {
-                await executeScreenShare();
+            if (!confirmed || !peerConnection) return;
+
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const screenVideoTrack = screenStream.getVideoTracks()[0];
+
+                const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(screenVideoTrack);
+                }
+
+                localStream = screenStream;
+                isMainVideoRemote = false;
+                assignStreamViews();
+
+                screenVideoTrack.onended = () => {
+                    stopScreenShare();
+                };
+            } catch (e) {
+                console.log('Screen share cancelled');
             }
         }
 
-        async function executeScreenShare() {
-            if (!peerConnection) return;
-            if (!isScreenSharing) {
-                try {
-                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                    const screenTrack = screenStream.getVideoTracks()[0];
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) sender.replaceTrack(screenTrack);
-                    
-                    document.getElementById('mainVideo').srcObject = screenStream;
-                    isScreenSharing = true;
-
-                    screenTrack.onended = () => { stopScreenSharing(); };
-                } catch(err) {}
-            } else {
-                stopScreenSharing();
-            }
-        }
-
-        function stopScreenSharing() {
-            if (!isScreenSharing) return;
-            const videoTrack = localStream.getVideoTracks()[0];
-            const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-            if (sender && videoTrack) sender.replaceTrack(videoTrack);
-            assignStreamViews();
-            isScreenSharing = false;
-        }
-
-        function toggleMuteMic() {
-            if (localStream && localStream.getAudioTracks().length > 0) {
-                isMicMuted = !isMicMuted;
-                localStream.getAudioTracks()[0].enabled = !isMicMuted;
-                document.getElementById('btnMuteMic').innerText = isMicMuted ? '🔇' : '🎙';
-            }
+        async function stopScreenShare() {
+            try {
+                const camStreamOnly = await getHDMediaStream(true, currentFacingMode);
+                const camVideoTrack = camStreamOnly.getVideoTracks()[0];
+                const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(camVideoTrack);
+                }
+                localStream = camStreamOnly;
+                isMainVideoRemote = true;
+                assignStreamViews();
+            } catch (e) {}
         }
 
         function endCall() {
-            if(selectedTargetUser) socket.emit('end-call', { targetName: selectedTargetUser });
+            if (selectedTargetUser) {
+                socket.emit('end-call', { targetName: selectedTargetUser });
+            }
             endCallUI();
         }
 
         function endCallUI() {
-            if(peerConnection) {
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
             }
-            if(localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            remoteStream = null;
-            isScreenSharing = false;
-            isMicMuted = false;
-            document.getElementById('btnMuteMic').innerText = '🎙';
             document.getElementById('callModal').style.display = 'none';
+            document.getElementById('incomingSlideCard').style.display = 'none';
         }
 
-        // --- Pinch-to-Zoom Feature Added ---
         function enableZoom(containerId, videoId) {
             const container = document.getElementById(containerId);
             const video = document.getElementById(videoId);
-            let scale = 1;
-            let startDist = 0;
+            let scale = 1, panning = false, pointX = 0, pointY = 0, startX = 0, startY = 0;
+            let initialDistance = null;
 
-            if(!container || !video) return;
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const xs = (e.clientX - pointX) / scale, ys = (e.clientY - pointY) / scale;
+                if (e.deltaY < 0) scale *= 1.1; else scale /= 1.1;
+                scale = Math.max(1, Math.min(scale, 5));
+                pointX = e.clientX - xs * scale; pointY = e.clientY - ys * scale;
+                setTransform();
+            });
+
+            container.addEventListener('mousedown', (e) => {
+                if (scale > 1) {
+                    panning = true;
+                    startX = e.clientX - pointX;
+                    startY = e.clientY - pointY;
+                }
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!panning) return;
+                pointX = e.clientX - startX;
+                pointY = e.clientY - startY;
+                setTransform();
+            });
+
+            container.addEventListener('mouseup', () => { panning = false; });
 
             container.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 2) {
-                    startDist = Math.hypot(
+                    initialDistance = Math.hypot(
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY
                     );
+                } else if (e.touches.length === 1 && scale > 1) {
+                    panning = true;
+                    startX = e.touches[0].clientX - pointX;
+                    startY = e.touches[0].clientY - pointY;
                 }
             }, {passive: true});
 
             container.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2) {
-                    let dist = Math.hypot(
+                if (e.touches.length === 2 && initialDistance) {
+                    const currentDistance = Math.hypot(
                         e.touches[0].clientX - e.touches[1].clientX,
                         e.touches[0].clientY - e.touches[1].clientY
                     );
-                    let factor = dist / startDist;
-                    scale = Math.min(Math.max(1, scale * factor), 4); // Zoom range: 1x to 4x
-                    
-                    let mirrorProp = (videoId === 'pipVideo' && currentFacingMode === 'user') ? 'scaleX(-1) ' : '';
-                    video.style.transform = mirrorProp + `scale(${scale})`;
-                    startDist = dist;
+                    const factor = currentDistance / initialDistance;
+                    scale = Math.max(1, Math.min(scale * factor, 5));
+                    initialDistance = currentDistance;
+                    setTransform();
+                } else if (e.touches.length === 1 && panning) {
+                    pointX = e.touches[0].clientX - startX;
+                    pointY = e.touches[0].clientY - startY;
+                    setTransform();
                 }
             }, {passive: true});
+
+            container.addEventListener('touchend', () => { initialDistance = null; panning = false; });
+
+            function setTransform() {
+                video.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+            }
         }
     </script>
 </body>
