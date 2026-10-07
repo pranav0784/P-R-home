@@ -251,8 +251,8 @@ io.on('connection', (socket) => {
                     if (targetData && targetData.fcmToken) {
                         const fcmMessage = {
                             notification: {
-                                title: "👽 New Transmission",
-                                body: "Tap to dismiss"
+                                title: "👽",
+                                body: ""
                             },
                             token: targetData.fcmToken
                         };
