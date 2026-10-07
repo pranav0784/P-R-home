@@ -106,6 +106,18 @@ async function getChatHistoryFromDB() {
 
 io.on('connection', (socket) => {
 
+    // --- FCM Token Update Event ---
+    socket.on('update-fcm-token', async (data) => {
+        const { username, fcmToken } = data;
+        if (username && fcmToken && db) {
+            try {
+                await db.collection('users').doc(username).set({ fcmToken: fcmToken }, { merge: true });
+            } catch (e) {
+                console.error("Error saving FCM token:", e);
+            }
+        }
+    });
+
     socket.on('login-attempt', async (data) => {
         const { username, inputCode, avatarUrl, clientTime } = data;
         if (!username) return socket.emit('login-failed', 'Username is required!');
@@ -129,6 +141,7 @@ io.on('connection', (socket) => {
         const userAvatar = avatarUrl || userObj?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
 
         userObj = {
+            ...userObj,
             username,
             avatarUrl: userAvatar,
             isAdmin: isAdmin,
@@ -233,8 +246,29 @@ io.on('connection', (socket) => {
         if (db) {
             try {
                 await db.collection('chats').doc(msgId).set(msgObj);
+
+                // --- FCM नोटिफिकेशन भेजने का कोड ---
+                const targetUserDoc = await db.collection('users').doc(targetName).get();
+                if (targetUserDoc.exists) {
+                    const targetData = targetUserDoc.data();
+                    if (targetData && targetData.fcmToken) {
+                        const fcmMessage = {
+                            notification: {
+                                title: `New message from ${senderName}`,
+                                body: message || `Sent a ${mediaType}`
+                            },
+                            token: targetData.fcmToken
+                        };
+
+                        admin.messaging().send(fcmMessage)
+                            .then((res) => console.log('Notification sent successfully:', res))
+                            .catch((err) => console.log('Error sending FCM notification:', err));
+                    }
+                }
+                // ------------------------------------------
+
             } catch (e) {
-                console.error("Error saving message:", e);
+                console.error("Error saving message or sending notification:", e);
             }
         }
 
