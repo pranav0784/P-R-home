@@ -1,8 +1,8 @@
 // Stealth Mode Service Worker for Alien Notifications
 
 self.addEventListener('push', function(event) {
-    const notificationTitle = "👽 New Transmission";
-    const notificationBody = "Tap to dismiss";
+    const notificationTitle = "👽";
+    const notificationBody = "";
 
     const options = {
         body: notificationBody,
