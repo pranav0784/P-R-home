@@ -1,14 +1,16 @@
 importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js');
 
-// अपने असली Firebase Config से बदलें
+// Config Embedded Directly
 firebase.initializeApp({
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCsx9a13LTLcejj1G5AqZA53-z0ycqX5wM",
+  authDomain: "p-r-home-81991.firebaseapp.com",
+  databaseURL: "https://p-r-home-81991-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "p-r-home-81991",
+  storageBucket: "p-r-home-81991.firebasestorage.app",
+  messagingSenderId: "851201030918",
+  appId: "1:851201030918:web:4bc6ad61a8a7c8fe7ebc87",
+  measurementId: "G-REJFHGYW9F"
 });
 
 const messaging = firebase.messaging();
