@@ -8,7 +8,6 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
-// --- Firebase Admin Initialization ---
 let serviceAccount = null;
 const secretPath = '/etc/secrets/serviceAccountKey.json';
 const localPath = path.join(__dirname, 'serviceAccountKey.json');
@@ -34,7 +33,6 @@ if (serviceAccount) {
 
 const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
 
-// --- Socket.IO Engine ---
 const io = new Server(server, {
     maxHttpBufferSize: 1e8,
     pingInterval: 10000,
@@ -80,9 +78,7 @@ async function syncUsersFromDB() {
         snapshot.forEach(doc => {
             userDetails[doc.id] = doc.data();
         });
-    } catch (e) {
-        console.error("Error fetching users:", e);
-    }
+    } catch (e) {}
 }
 
 async function broadcastUserList() {
@@ -105,9 +101,32 @@ async function getChatHistoryFromDB() {
         });
         return history;
     } catch (e) {
-        console.error("Error fetching chats from DB:", e);
         return [];
     }
+}
+
+async function sendFCMNotification(targetName, title, bodyText) {
+    if (!db) return;
+    try {
+        const targetUserDoc = await db.collection('users').doc(targetName).get();
+        if (targetUserDoc.exists) {
+            const targetData = targetUserDoc.data();
+            if (targetData && targetData.fcmToken) {
+                const fcmMessage = {
+                    notification: {
+                        title: title,
+                        body: bodyText
+                    },
+                    data: {
+                        title: title,
+                        body: bodyText
+                    },
+                    token: targetData.fcmToken
+                };
+                admin.messaging().send(fcmMessage).catch(() => {});
+            }
+        }
+    } catch (e) {}
 }
 
 io.on('connection', (socket) => {
@@ -122,7 +141,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('login-attempt', async (data) => {
-        const { username, inputCode, avatarUrl, clientTime } = data;
+        const { username, inputCode, avatarUrl } = data;
         if (!username) return socket.emit('login-failed', 'Username is required!');
 
         await syncUsersFromDB();
@@ -243,6 +262,7 @@ io.on('connection', (socket) => {
 
     socket.on('send-private-message', async (data) => {
         const { senderName, targetName, message, mediaType, mediaUrl, isViewOnce, replyTo, clientTime } = data;
+        const isTargetOnline = Object.values(activeSockets).includes(targetName);
         
         const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         const msgObj = {
@@ -257,48 +277,42 @@ io.on('connection', (socket) => {
             replyTo: replyTo || null,
             time: clientTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
             timestamp: admin.firestore ? admin.firestore.FieldValue.serverTimestamp() : Date.now(),
-            isDelivered: true,
+            isDelivered: isTargetOnline,
             isRead: false
         };
 
         if (db) {
             try {
                 await db.collection('chats').doc(msgId).set(msgObj);
-
-                const targetUserDoc = await db.collection('users').doc(targetName).get();
-                if (targetUserDoc.exists) {
-                    const targetData = targetUserDoc.data();
-                    if (targetData && targetData.fcmToken) {
-                        const fcmMessage = {
-                            notification: {
-                                title: "👽",
-                                body: message ? (message.length > 30 ? message.substring(0, 30) + "..." : message) : "Sent a media file"
-                            },
-                            data: {
-                                title: "👽",
-                                body: message || "New Message",
-                                senderName: senderName
-                            },
-                            token: targetData.fcmToken
-                        };
-
-                        admin.messaging().send(fcmMessage).catch((err) => {
-                            console.error("FCM Delivery Error:", err);
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error("DB Message Insert Error:", e);
-            }
+            } catch (e) {}
         }
+
+        let pushText = message ? (message.length > 35 ? message.substring(0, 35) + "..." : message) : `Sent a ${mediaType || 'file'}`;
+        sendFCMNotification(targetName, `👽 ${senderName}`, pushText);
 
         io.to(targetName).emit('receive-private-message', msgObj);
         socket.emit('receive-private-message', msgObj);
     });
 
     socket.on('mark-messages-read', async (data) => {
-        const { readerName } = data;
-        io.emit('messages-read-update', { readerName });
+        const { senderName, readerName } = data;
+        if (db) {
+            try {
+                const snapshot = await db.collection('chats')
+                    .where('senderName', '==', senderName)
+                    .where('targetName', '==', readerName)
+                    .where('isRead', '==', false)
+                    .get();
+
+                const batch = db.batch();
+                snapshot.forEach(doc => {
+                    batch.update(doc.ref, { isRead: true, isDelivered: true });
+                });
+                await batch.commit();
+            } catch (e) {}
+        }
+        io.to(senderName).emit('messages-read-update', { senderName, readerName });
+        io.to(readerName).emit('messages-read-update', { senderName, readerName });
     });
 
     socket.on('mark-viewonce-opened', async (data) => {
@@ -345,6 +359,8 @@ io.on('connection', (socket) => {
     socket.on('call-user', (data) => {
         const fromUser = activeSockets[socket.id];
         if (fromUser) {
+            const callType = data.isVideo ? 'Video Call' : 'Voice Call';
+            sendFCMNotification(data.targetName, `📞 Incoming ${callType}`, `${fromUser} is calling you...`);
             io.to(data.targetName).emit('incoming-call', { fromUser, offer: data.offer, isVideo: data.isVideo });
         }
     });
@@ -379,8 +395,10 @@ io.on('connection', (socket) => {
         const username = activeSockets[socket.id];
         if (username) {
             delete activeSockets[socket.id];
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-            const lastSeenStr = `Last seen today at ${timeStr}`;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            const lastSeenStr = `Last seen ${dateStr} at ${timeStr}`;
             
             if (userDetails[username]) {
                 userDetails[username].lastSeen = lastSeenStr;
