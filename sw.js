@@ -1,8 +1,6 @@
-// Stealth Mode Service Worker for Alien Notifications
-
 self.addEventListener('push', function(event) {
     let title = "👽";
-    let body = "";
+    let body = "New message received";
 
     if (event.data) {
         try {
@@ -18,7 +16,7 @@ self.addEventListener('push', function(event) {
         body: body,
         icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
         badge: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
-        tag: 'secret-alien-msg',
+        tag: 'alien-quantum-alert',
         renotify: true,
         silent: false,
         vibrate: [200, 100, 200]
@@ -31,7 +29,6 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
-    
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
             for (let i = 0; i < clientList.length; i++) {
