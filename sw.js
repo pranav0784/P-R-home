@@ -1,11 +1,21 @@
 // Stealth Mode Service Worker for Alien Notifications
 
 self.addEventListener('push', function(event) {
-    const notificationTitle = "👽";
-    const notificationBody = "";
+    let title = "👽";
+    let body = "";
+
+    if (event.data) {
+        try {
+            const data = event.data.json();
+            title = data.title || data.notification?.title || title;
+            body = data.body || data.notification?.body || body;
+        } catch (e) {
+            title = event.data.text() || title;
+        }
+    }
 
     const options = {
-        body: notificationBody,
+        body: body,
         icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
         badge: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👽</text></svg>",
         tag: 'secret-alien-msg',
@@ -15,7 +25,7 @@ self.addEventListener('push', function(event) {
     };
 
     event.waitUntil(
-        self.registration.showNotification(notificationTitle, options)
+        self.registration.showNotification(title, options)
     );
 });
 
