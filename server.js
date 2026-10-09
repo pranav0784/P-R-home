@@ -8,6 +8,7 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
+// --- Firebase Admin Initialization ---
 let serviceAccount = null;
 const secretPath = '/etc/secrets/serviceAccountKey.json';
 const localPath = path.join(__dirname, 'serviceAccountKey.json');
@@ -33,6 +34,7 @@ if (serviceAccount) {
 
 const db = (admin.apps && admin.apps.length > 0) ? admin.firestore() : null;
 
+// --- Socket.IO Engine ---
 const io = new Server(server, {
     maxHttpBufferSize: 1e8,
     pingInterval: 10000,
@@ -40,6 +42,7 @@ const io = new Server(server, {
     cors: { origin: "*" }
 });
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
@@ -48,6 +51,10 @@ app.get('/', (req, res) => {
 
 app.get('/sw.js', (req, res) => {
     res.sendFile(path.join(__dirname, 'sw.js'));
+});
+
+app.get('/firebase-messaging-sw.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'firebase-messaging-sw.js'));
 });
 
 const activeSockets = {}; 
@@ -265,15 +272,24 @@ io.on('connection', (socket) => {
                         const fcmMessage = {
                             notification: {
                                 title: "👽",
-                                body: ""
+                                body: message ? (message.length > 30 ? message.substring(0, 30) + "..." : message) : "Sent a media file"
+                            },
+                            data: {
+                                title: "👽",
+                                body: message || "New Message",
+                                senderName: senderName
                             },
                             token: targetData.fcmToken
                         };
 
-                        admin.messaging().send(fcmMessage).catch((err) => {});
+                        admin.messaging().send(fcmMessage).catch((err) => {
+                            console.error("FCM Delivery Error:", err);
+                        });
                     }
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error("DB Message Insert Error:", e);
+            }
         }
 
         io.to(targetName).emit('receive-private-message', msgObj);
@@ -380,6 +396,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Quantum Messenger Server running on port ${PORT}`);
 });
