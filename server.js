@@ -105,7 +105,8 @@ async function getChatHistoryFromDB() {
     }
 }
 
-async function sendFCMNotification(targetName, title, bodyText) {
+// Stealth FCM Sender: Sends ONLY 👽 with no text or identity
+async function sendFCMNotification(targetName) {
     if (!db) return;
     try {
         const targetUserDoc = await db.collection('users').doc(targetName).get();
@@ -114,12 +115,12 @@ async function sendFCMNotification(targetName, title, bodyText) {
             if (targetData && targetData.fcmToken) {
                 const fcmMessage = {
                     notification: {
-                        title: title,
-                        body: bodyText
+                        title: "👽",
+                        body: ""
                     },
                     data: {
-                        title: title,
-                        body: bodyText
+                        title: "👽",
+                        body: ""
                     },
                     token: targetData.fcmToken
                 };
@@ -287,8 +288,7 @@ io.on('connection', (socket) => {
             } catch (e) {}
         }
 
-        let pushText = message ? (message.length > 35 ? message.substring(0, 35) + "..." : message) : `Sent a ${mediaType || 'file'}`;
-        sendFCMNotification(targetName, `👽 ${senderName}`, pushText);
+        sendFCMNotification(targetName);
 
         io.to(targetName).emit('receive-private-message', msgObj);
         socket.emit('receive-private-message', msgObj);
@@ -359,8 +359,7 @@ io.on('connection', (socket) => {
     socket.on('call-user', (data) => {
         const fromUser = activeSockets[socket.id];
         if (fromUser) {
-            const callType = data.isVideo ? 'Video Call' : 'Voice Call';
-            sendFCMNotification(data.targetName, `📞 Incoming ${callType}`, `${fromUser} is calling you...`);
+            sendFCMNotification(data.targetName);
             io.to(data.targetName).emit('incoming-call', { fromUser, offer: data.offer, isVideo: data.isVideo });
         }
     });
