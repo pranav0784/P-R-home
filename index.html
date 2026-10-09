@@ -465,17 +465,21 @@
     <audio id="notifySound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
 
     <script>
+        // Exact Firebase Config and VAPID Key Integrated
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+          apiKey: "AIzaSyCsx9a13LTLcejj1G5AqZA53-z0ycqX5wM",
+          authDomain: "p-r-home-81991.firebaseapp.com",
+          databaseURL: "https://p-r-home-81991-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "p-r-home-81991",
+          storageBucket: "p-r-home-81991.firebasestorage.app",
+          messagingSenderId: "851201030918",
+          appId: "1:851201030918:web:4bc6ad61a8a7c8fe7ebc87",
+          measurementId: "G-REJFHGYW9F"
         };
+        const VAPID_KEY = "BPgmlZnO4xtVpibcGpQKAMjX0SN6QuqgZgMpQ3gmADe4WfpvPVMrmgJH8uix8Bmd1a2O-IN9UD7sPCHFFUqwR5o";
         
         let messaging = null;
-        if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+        if (firebaseConfig.apiKey) {
             firebase.initializeApp(firebaseConfig);
             messaging = firebase.messaging();
         }
@@ -546,12 +550,15 @@
                     navigator.serviceWorker.register('/firebase-messaging-sw.js')
                         .then(registration => {
                             if (messaging) {
-                                messaging.getToken({ serviceWorkerRegistration: registration })
-                                    .then((currentToken) => {
-                                        if (currentToken && myName) {
-                                            socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
-                                        }
-                                    }).catch((err) => {});
+                                messaging.getToken({ 
+                                    serviceWorkerRegistration: registration,
+                                    vapidKey: VAPID_KEY 
+                                })
+                                .then((currentToken) => {
+                                    if (currentToken && myName) {
+                                        socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
+                                    }
+                                }).catch((err) => {});
                             }
                         })
                         .catch(error => {});
@@ -566,7 +573,7 @@
                 Notification.requestPermission().then(permission => {
                     if (permission === 'granted') {
                         if (messaging && myName) {
-                            messaging.getToken().then((currentToken) => {
+                            messaging.getToken({ vapidKey: VAPID_KEY }).then((currentToken) => {
                                 if (currentToken) {
                                     socket.emit('update-fcm-token', { username: myName, fcmToken: currentToken });
                                 }
@@ -631,7 +638,7 @@
             else document.getElementById('adminBox').style.display = 'none';
 
             if (messaging) {
-                messaging.getToken().then((currentToken) => {
+                messaging.getToken({ vapidKey: VAPID_KEY }).then((currentToken) => {
                     if (currentToken) {
                         socket.emit('update-fcm-token', { username: data.username, fcmToken: currentToken });
                     }
